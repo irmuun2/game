@@ -1,0 +1,13 @@
+{
+  "name": "delhiin-gadarga",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Газар зүй 7-р анги, III бүлэг «Дэлхийн гадарга»: аватартай асуулт хариултын тоглоом.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/dev.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

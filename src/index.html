@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Дэлхийн гадарга сорил</title>
+<meta name="description" content="Газар зүй 7-р анги, III бүлэг «Дэлхийн гадарга»: аватартай асуулт хариултын тоглоом.">
+<meta name="theme-color" content="#07233a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20width%3D'64'%20height%3D'64'%20rx%3D'14'%20fill%3D'%2307233a'%2F%3E%3Cpath%20d%3D'M4%2052%20L22%2026%20L30%2036%20L42%2014%20L60%2052%20Z'%20fill%3D'%23a9622f'%2F%3E%3Cpath%20d%3D'M36%2025%20L42%2014%20L48%2027%20Z'%20fill%3D'%23eef3f0'%2F%3E%3Crect%20y%3D'50'%20width%3D'64'%20height%3D'14'%20fill%3D'%231d6493'%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap">
+<link rel="stylesheet" href="gadarga.css">
+</head>
+<body>
+<canvas id="terrain" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+
+<main class="app">
+
+  <nav class="nav" id="nav" hidden aria-label="Үндсэн цэс">
+    <div class="nav-tabs">
+      <button type="button" class="nav-btn" data-nav="home">Нүүр</button>
+      <button type="button" class="nav-btn" data-nav="games">Тоглоом</button>
+      <button type="button" class="nav-btn" data-nav="board">Өрсөлдөгчид</button>
+      <button type="button" class="nav-btn" data-nav="profiles" id="nav-profiles" hidden>Тоглогч солих</button>
+      <button type="button" class="nav-btn" data-nav="teacher" id="nav-teacher" hidden>Багш<span class="badge" id="t-badge" hidden>0</span></button>
+    </div>
+    <div class="nav-me" id="nav-me"></div>
+  </nav>
+
+  <div class="storage-warn" id="storage-warn" hidden role="alert">
+    <b>Анхаар: энэ хөтөч таны ахицыг хадгалж чадахгүй байна.</b>
+    Файлыг компьютер эсвэл утсандаа хадгалаад <b>Chrome</b> эсвэл <b>Edge</b>-ээр нээнэ үү. Messenger, чатын доторх харагч болон нууц цонх ахиц хадгалдаггүй.
+    Имэйлээрээ нэвтэрсэн бол ахиц тань серверт хадгалагдаж байгаа тул дахин нэвтрэхэд буцаж ирнэ.
+  </div>
+
+  <section id="loading" class="sheet narrow">
+    <p class="eyebrow">Газар зүй · 7-р анги · III бүлэг</p>
+    <h1>Дэлхийн <span>гадарга</span></h1>
+    <p class="note">Тоглогчийн мэдээллийг ачаалж байна…</p>
+  </section>
+
+  <section id="blocked" class="sheet narrow" hidden>
+    <p class="eyebrow">Дэлхийн гадарга</p>
+    <h2 class="h2" id="blocked-title">Тоглох боломжгүй байна</h2>
+    <p class="lead" id="blocked-msg" style="margin:12px auto 0"></p>
+    <div class="row" id="blocked-actions" hidden style="justify-content:center;margin-top:18px">
+      <button type="button" class="btn-primary" id="bl-retry">Дахин оролдох</button>
+      <button type="button" class="btn-ghost" id="bl-offline">Офлайнаар тоглох</button>
+    </div>
+  </section>
+
+  <!-- ИМЭЙЛЭЭР НЭВТРЭХ -->
+  <section id="login" class="sheet narrow" hidden aria-labelledby="lg-title">
+    <p class="eyebrow">Дэлхийн гадарга</p>
+    <h2 class="h2" id="lg-title">Имэйлээр нэвтрэх</h2>
+    <p class="lead" style="margin:10px auto 18px">Имэйлээ бичээд тэр рүү ирсэн 6 оронтой кодоор нэвтэрнэ. Дараа нь ямар ч утас, компьютер дээрээс өөрийн ахицаараа үргэлжлүүлнэ.</p>
+    <p class="note" id="lg-msg" hidden></p>
+    <div class="login-step" id="lg-step1">
+      <label class="label" for="lg-email">Имэйл хаяг</label>
+      <input class="text-in" id="lg-email" type="email" autocomplete="email" inputmode="email" placeholder="нэр@жишээ.mn">
+      <button type="button" class="btn-primary" id="lg-send">Код авах</button>
+    </div>
+    <div class="login-step" id="lg-step2" hidden>
+      <p class="note" id="lg-sent" style="margin:0"></p>
+      <label class="label" for="lg-code">Имэйлд ирсэн код</label>
+      <input class="text-in code-in" id="lg-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+      <button type="button" class="btn-primary" id="lg-verify">Нэвтрэх</button>
+      <div class="row" style="justify-content:center">
+        <button type="button" class="btn-ghost sm" id="lg-resend">Код дахин авах</button>
+        <button type="button" class="btn-ghost sm" id="lg-back">Өөр имэйл</button>
+      </div>
+    </div>
+    <div class="login-step" id="lg-step3" hidden>
+      <p class="lead" style="margin:0">Шинэ бүртгэл нээгдлээ. Энэ төхөөрөмж дээр өмнө тоглосон ахицыг энэ бүртгэлд шилжүүлэх үү?</p>
+      <ul class="plist" id="lg-adopt" style="text-align:left"></ul>
+      <button type="button" class="btn-ghost" id="lg-fresh">Үгүй, шинээр эхлэх</button>
+    </div>
+    <p class="err" id="lg-err" hidden></p>
+    <details class="card howto" id="lg-sync" style="margin-top:22px;text-align:left">
+      <summary>Багшид: ангийн нэгдсэн самбар</summary>
+      <p class="note">Имэйлээр нэвтрэхийн тулд Google Sheets-ийн вэб аппын холбоос хэрэгтэй. Холбоосыг өөрчлөх бол энд оруулна.</p>
+      <div class="copy-row">
+        <input class="text-in" id="lg-sync-url" type="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Нэгдсэн самбарын холбоос">
+        <button type="button" class="btn-primary sm" id="lg-sync-save">Хадгалах</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- АВАТАР БҮТЭЭХ -->
+  <section id="create" class="sheet" hidden aria-labelledby="ed-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">Өөрийн аватар</p>
+        <h2 class="h2" id="ed-title">Аватараа бүтээ</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" id="ed-cancel">Буцах</button>
+    </div>
+    <div class="editor">
+      <div class="preview">
+        <div class="av-ring" id="ed-preview"></div>
+        <div class="field-w">
+          <label class="label" for="ed-name">Тоглогчийн нэр</label>
+          <input class="text-in" id="ed-name" type="text" maxlength="20" autocomplete="off" placeholder="Жишээ нь: Уулчин Бат">
+        </div>
+        <div class="field-w" id="ed-code-wrap" hidden>
+          <label class="label" for="ed-code">Ангийн код (багшаас авсан бол)</label>
+          <input class="text-in code-in" id="ed-code" type="text" maxlength="9" autocomplete="off" placeholder="ABC-123">
+        </div>
+        <button type="button" class="btn-primary" id="ed-save">Хадгалах</button>
+        <p class="err" id="ed-err" hidden></p>
+        <p class="note" id="ed-sub"></p>
+      </div>
+      <div class="opts" id="ed-opts"></div>
+    </div>
+  </section>
+
+  <!-- ЗӨВШӨӨРӨЛ ХҮЛЭЭХ -->
+  <section id="wait" class="sheet narrow" hidden>
+    <p class="eyebrow">Багшийн зөвшөөрөл</p>
+    <div class="av-ring" id="wait-av" style="margin:6px auto 14px"></div>
+    <h2 class="h2" id="wait-title">Хүсэлт илгээгдлээ</h2>
+    <p class="lead" id="wait-msg" style="margin:12px auto 18px">Багш зөвшөөрөхөд тоглоом автоматаар нээгдэнэ.</p>
+    <div class="code-box" id="wait-code-box">
+      <label class="label" for="wait-code">Эсвэл багшийн өгсөн ангийн код, эсвэл «Анги» өрөөний кодыг оруул</label>
+      <div class="row" style="justify-content:center">
+        <input class="text-in code-in" id="wait-code" type="text" maxlength="9" autocomplete="off" placeholder="ABC-123">
+        <button type="button" class="btn-primary" id="wait-join">Нэгдэх</button>
+      </div>
+      <p class="err" id="wait-err" hidden></p>
+    </div>
+    <button type="button" class="btn-ghost sm" id="wait-edit" style="margin-top:16px">Аватар засах</button>
+    <div class="leaders-wrap" style="text-align:left">
+      <h3 class="h-sm">Таны өрсөлдөгчид: эхний 10 тэргүүлэгч</h3>
+      <div id="wait-leaders"></div>
+    </div>
+  </section>
+
+  <!-- НҮҮР: ДҮР, ДЭЛГҮҮР, СТИЛ -->
+  <section id="home" class="sheet" hidden aria-labelledby="home-title">
+    <h1 class="sr-only" id="home-title">Нүүр</h1>
+    <div class="me-card" id="home-me"></div>
+    <div class="home-grid">
+      <div>
+        <div class="bar-top" style="margin-bottom:12px">
+          <h2 class="h-sm" style="margin:0">Дэлгүүр ба хувцасны шүүгээ</h2>
+          <p class="wallet" id="wallet"></p>
+        </div>
+        <div class="slot-tabs" id="slot-tabs" role="tablist" aria-label="Өмсөх зүйлс"></div>
+        <div class="shop" id="shop"></div>
+        <p class="note">Дэлгүүрийн оноо = цуглуулсан нийт оноо − зарцуулсан оноо. Тоглоод оноо цуглуулж дүрээ хөгжүүлээрэй.</p>
+      </div>
+      <div class="side-stack">
+        <div>
+          <h2 class="h-sm">Стил бүрдүүлэх</h2>
+          <div class="styles" id="styles"></div>
+        </div>
+        <div class="card" id="invite-card">
+          <h2 class="h-sm">Найзаа урих</h2>
+          <p class="note" style="margin:0 0 10px" id="invite-text"></p>
+          <div class="copy-row">
+            <input class="text-in" id="invite-link" type="text" readonly aria-label="Тоглоомын холбоос">
+            <button type="button" class="btn-primary sm" id="copy-link">Холбоос хуулах</button>
+          </div>
+          <p class="note" id="copy-msg" aria-live="polite"></p>
+        </div>
+        <p class="note" id="mode-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ТОГЛООМ ЦЭС -->
+  <section id="games" class="sheet" hidden aria-labelledby="games-title">
+    <p class="eyebrow">Газар зүй · 7-р анги · III бүлэг</p>
+    <h1 id="games-title">Дэлхийн <span>гадарга</span></h1>
+    <div id="games-rival" style="margin-top:20px"></div>
+    <div class="game-cards">
+      <article class="game-card g1">
+        <p class="gc-n">1-р тоглоом</p>
+        <h2 class="h2">Оргил руу</h2>
+        <p class="lead">Түвшин 1-ээс 6 хүртэл. Эхний 5 түвшнийг давбал үнэгүй шагнал авна.</p>
+        <p class="gc-prog" id="g1-prog"></p>
+        <button type="button" class="btn-primary" id="open-levels">Түвшин сонгох</button>
+      </article>
+      <article class="game-card g2">
+        <p class="gc-n">2-р тоглоом</p>
+        <h2 class="h2">Чулуулгийн газрын зураг</h2>
+        <p class="lead">Дэлхийн газрын зураг дээрээс ямар чулуу хаана их олддогийг судлаад, анхны 71 асуултаас хариулна.</p>
+        <p class="gc-prog" id="g2-prog"></p>
+        <button type="button" class="btn-primary" id="open-map">Газрын зураг нээх</button>
+      </article>
+    </div>
+    <article class="game-card g3" style="margin-top:16px">
+      <p class="gc-n">Өрөөнүүд</p>
+      <h2 class="h2">Анги ба найзуудын өрөө</h2>
+      <p class="lead">Өрөө үүсгэж эсвэл кодоор нэгдээд зөвхөн ангийнхан, найзуудтайгаа өрсөлд. Сургуулиас гадуур ч хамт өрсөлдөнө.</p>
+      <p class="gc-prog" id="g3-prog"></p>
+      <div class="row">
+        <button type="button" class="btn-primary" id="open-rooms">Өрөөнүүд</button>
+        <button type="button" class="btn-ghost" id="open-room-create">Өрөө үүсгэх</button>
+      </div>
+    </article>
+    <div class="leaders-wrap">
+      <div class="bar-top" style="margin-bottom:14px">
+        <h2 class="h-sm" style="margin:0">Өрсөлдөгчдийн самбар · эхний 10</h2>
+        <button type="button" class="btn-ghost sm" data-nav="board">Бүх жагсаалт</button>
+      </div>
+      <div id="games-leaders"></div>
+    </div>
+    <p class="note" style="margin-top:18px">Оноо: хурдан, зөв хариулах тусам их. Маш хурдан бол 3, хурдан бол 2, удаан бол 1 оноо. Буруу эсвэл хугацаа дуусвал 0.</p>
+  </section>
+
+  <!-- 1-Р ТОГЛООМ: ҮЕ ШАТУУД -->
+  <section id="levels" class="sheet" hidden aria-labelledby="levels-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">1-р тоглоом</p>
+        <h2 class="h2" id="levels-title">Оргил руу: тал нутгаас оргил хүртэл</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+    </div>
+    <div class="stairs" id="stairs"></div>
+    <div class="stairs-base" aria-hidden="true"></div>
+    <p class="stairs-note">Түвшин бүрт 6 асуулт. 4-өөс доошгүй зөв хариулбал дараагийн түвшин нээгдэнэ. Эхний 5 түвшнийг давбал үнэгүй шагнал авна.</p>
+  </section>
+
+  <!-- 2-Р ТОГЛООМ: ЧУЛУУЛГИЙН ГАЗРЫН ЗУРАГ -->
+  <section id="map" class="sheet wide" hidden aria-labelledby="map-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">2-р тоглоом</p>
+        <h2 class="h2" id="map-title">Ямар чулуу хаана их олддог вэ?</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+    </div>
+    <div class="map-grid">
+      <div>
+        <div class="world-wrap" id="world"></div>
+        <div class="legend-r" id="rock-legend"></div>
+      </div>
+      <div class="side-stack">
+        <div class="card site-card" id="site-card" aria-live="polite"></div>
+        <p class="note" id="seen-count"></p>
+        <div class="site-list" id="site-list"></div>
+      </div>
+    </div>
+    <div class="map-start">
+      <div class="field">
+        <p class="label" id="lbl-sec">Асуултын сэдэв</p>
+        <div class="chips" role="group" aria-labelledby="lbl-sec" id="m-secs"></div>
+      </div>
+      <fieldset class="field">
+        <legend class="label">Асуултын тоо</legend>
+        <div class="seg-row" id="m-count"></div>
+      </fieldset>
+      <div class="go">
+        <button type="button" class="btn-primary" id="m-start">Асуулт эхлэх</button>
+        <p class="hint" id="m-hint"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ӨРӨӨНҮҮД: миний өрөө, үүсгэх, кодоор нэгдэх -->
+  <section id="rooms" class="sheet" hidden aria-labelledby="rooms-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">Тоглоом · Өрөөнүүд</p>
+        <h2 class="h2" id="rooms-title">Өрөөнүүд</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+    </div>
+    <div class="slot-tabs" id="rooms-tabs" role="tablist" aria-label="Өрөөний цэс">
+      <button type="button" class="slot-tab" role="tab" data-rtab="mine" aria-selected="true">Миний өрөөнүүд</button>
+      <button type="button" class="slot-tab" role="tab" data-rtab="create" aria-selected="false">Өрөө үүсгэх</button>
+      <button type="button" class="slot-tab" role="tab" data-rtab="join" aria-selected="false">Кодоор нэгдэх</button>
+    </div>
+    <div id="rt-mine">
+      <div class="room-list" id="rooms-list"></div>
+    </div>
+    <div id="rt-create" hidden>
+      <div class="card room-form">
+        <p class="room-tokens" id="room-tokens"></p>
+        <div class="field-w">
+          <label class="label" for="room-name">Өрөөний нэр</label>
+          <input class="text-in" id="room-name" type="text" maxlength="24" autocomplete="off" placeholder="Жишээ нь: 7а анги">
+        </div>
+        <fieldset class="field">
+          <legend class="label">Өрөөний төрөл</legend>
+          <div class="seg-row">
+            <input type="radio" name="room-type" id="rt-class" value="class" checked><label for="rt-class">Анги</label>
+            <input type="radio" name="room-type" id="rt-friends" value="friends"><label for="rt-friends">Найзууд</label>
+          </div>
+        </fieldset>
+        <button type="button" class="btn-primary" id="room-create">Өрөө үүсгэх</button>
+        <p class="err" id="room-create-err" hidden></p>
+        <div class="room-made" id="room-made" hidden></div>
+      </div>
+    </div>
+    <div id="rt-join" hidden>
+      <div class="card room-form">
+        <p class="note" style="margin:0">Багш эсвэл найзынхаа өгсөн 6 тэмдэгттэй кодыг оруулна.</p>
+        <div class="row">
+          <input class="text-in code-in" id="room-code" type="text" maxlength="9" autocomplete="off" placeholder="ABC-123" aria-label="Өрөөний код">
+          <button type="button" class="btn-primary" id="room-join">Нэгдэх</button>
+        </div>
+        <p class="err" id="room-join-err" hidden></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- НЭГ ӨРӨӨ: өрсөлдөгчдийн самбар -->
+  <section id="room" class="sheet" hidden aria-labelledby="room-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow" id="room-eyebrow">Өрөө</p>
+        <h2 class="h2" id="room-title">Өрөө</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" id="room-back">Өрөөнүүд</button>
+    </div>
+    <div class="room-head">
+      <p class="room-code">Код: <b id="room-code-view"></b></p>
+      <button type="button" class="btn-ghost sm" id="room-copy">Код хуулах</button>
+      <p class="note" id="room-meta" style="margin:0"></p>
+    </div>
+    <p class="note" id="room-copy-msg" aria-live="polite"></p>
+    <div id="room-rival" style="margin:14px 0 18px"></div>
+    <h3 class="h-sm">Өрөөний өрсөлдөгчдийн самбар</h3>
+    <div id="room-leaders"></div>
+
+    <div class="card swap" id="room-swap" hidden>
+      <h3 class="h-sm">Интернэтгүйгээр оноо солилцох</h3>
+      <p class="note" style="margin:0 0 12px">Өөр төхөөрөмж дээр тоглож буй өрөөнийхөнтэйгээ онооны кодоо чатаар солилцоорой. Оноо өөрчлөгдөх бүрд кодоо дахин явуулна.</p>
+      <div class="swap-grid">
+        <div>
+          <p class="label">1. Миний онооны код</p>
+          <button type="button" class="btn-primary sm" id="card-make">Кодоо гаргах</button>
+          <textarea class="text-in code-box-ta" id="card-out" readonly rows="3" hidden aria-label="Миний онооны код"></textarea>
+          <button type="button" class="btn-ghost sm" id="card-copy" hidden>Хуулах</button>
+          <p class="note" id="card-msg" aria-live="polite"></p>
+        </div>
+        <div>
+          <p class="label">2. Найзын код оруулах</p>
+          <textarea class="text-in code-box-ta" id="card-in" rows="3" placeholder="GDG1.…" aria-label="Найзын онооны код"></textarea>
+          <button type="button" class="btn-primary sm" id="card-add">Нэмэх</button>
+          <p class="note" id="card-add-msg" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn-ghost sm" id="room-leave" style="margin-top:18px">Өрөөнөөс гарах</button>
+  </section>
+
+  <!-- ТОГЛОГЧИД -->
+  <section id="board" class="sheet" hidden aria-labelledby="board-title">
+    <p class="eyebrow">Эхний 10 тэргүүлэгч · нийт оноогоор</p>
+    <h2 class="h2" id="board-title" style="margin-bottom:6px">Өрсөлдөгчдийн самбар</h2>
+    <p class="lead" style="margin:0 0 16px">Хэн тэргүүлж байна? Өрсөлдөгчөө гүйцэж түрүүлээрэй!</p>
+    <div id="board-rival" style="margin-bottom:18px"></div>
+    <div id="board-leaders"></div>
+  </section>
+
+  <!-- ЭНЭ ТӨХӨӨРӨМЖИЙН ТОГЛОГЧИД -->
+  <section id="profiles" class="sheet" hidden aria-labelledby="profiles-title">
+    <p class="eyebrow">Энэ төхөөрөмж</p>
+    <h2 class="h2" id="profiles-title" style="margin-bottom:6px">Хэн тоглох вэ?</h2>
+    <p class="note" style="margin:0 0 18px">Нэг компьютер дээр олон сурагч ээлжлэн тоглож болно. Хүн бүр өөрийн дүрээ сонгоно.</p>
+    <ul class="plist" id="profile-list"></ul>
+    <button type="button" class="btn-primary" id="profile-new" style="margin-top:14px">Шинэ тоглогч нэмэх</button>
+    <details class="card howto" id="sync-card" hidden style="margin-top:22px">
+      <summary>Багшид: ангийн нэгдсэн самбар</summary>
+      <p class="note">Өөр өөр төхөөрөмж дээр тоглож буй сурагчдыг нэг өрсөлдөгчдийн самбарт харуулна. Google Sheets-ийн вэб аппын холбоосыг энд оруулна. Нэг удаа тохируулахад тухайн төхөөрөмж дээр хадгалагдана.</p>
+      <div class="copy-row">
+        <input class="text-in" id="sync-url" type="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Нэгдсэн самбарын холбоос">
+        <button type="button" class="btn-primary sm" id="sync-save">Хадгалах</button>
+      </div>
+      <p class="note" id="sync-status" aria-live="polite"></p>
+    </details>
+  </section>
+
+  <!-- БАГШИЙН САМБАР -->
+  <section id="teacher" class="sheet" hidden aria-labelledby="teacher-title">
+    <p class="eyebrow">Зөвхөн үүсгэгч ба админд харагдана</p>
+    <h2 class="h2" id="teacher-title" style="margin-bottom:14px">Багшийн самбар</h2>
+    <div class="slot-tabs" id="t-tabs" role="tablist" aria-label="Багшийн самбарын хэсгүүд">
+      <button type="button" class="slot-tab" role="tab" data-ttab="access" aria-selected="true">Эрх ба код</button>
+      <button type="button" class="slot-tab" role="tab" data-ttab="report" aria-selected="false">Тайлан</button>
+      <button type="button" class="slot-tab" role="tab" data-ttab="bank" aria-selected="false">Асуулт, хариулт</button>
+      <button type="button" class="slot-tab" role="tab" data-ttab="code" aria-selected="false">Код ба апп</button>
+    </div>
+    <div class="home-grid" style="margin-top:6px" id="tt-access">
+      <div class="side-stack">
+        <div>
+          <h3 class="h-sm">Хүлээгдэж буй хүсэлт</h3>
+          <ul class="plist" id="t-pending"></ul>
+        </div>
+        <div>
+          <h3 class="h-sm">Зөвшөөрөгдсөн тоглогчид</h3>
+          <ul class="plist" id="t-players"></ul>
+        </div>
+        <div>
+          <h3 class="h-sm">Татгалзсан</h3>
+          <ul class="plist" id="t-declined"></ul>
+        </div>
+      </div>
+      <div class="side-stack">
+        <div class="card">
+          <h3 class="h-sm">Ангийн код</h3>
+          <p class="note" style="margin:0 0 12px">Кодыг самбар дээр бичиж өгвөл сурагчид хүсэлт хүлээлгүй шууд нэгдэнэ.</p>
+          <p class="class-code" id="class-code">Код үүсгээгүй</p>
+          <div class="row">
+            <button type="button" class="btn-primary sm" id="code-new">Шинэ код үүсгэх</button>
+            <button type="button" class="btn-ghost sm" id="code-copy">Код хуулах</button>
+            <button type="button" class="btn-ghost sm" id="code-off">Кодыг хаах</button>
+          </div>
+          <p class="note" id="code-msg" aria-live="polite"></p>
+        </div>
+        <div class="card">
+          <h3 class="h-sm">Админууд</h3>
+          <p class="note" style="margin:0 0 10px">Эдгээр хүмүүс Багшийн самбар, тайлан, асуултын сан, кодыг харна. Тэргүүлэгчдийн жагсаалтад ордоггүй.</p>
+          <ul class="plist" id="t-admins"></ul>
+          <p class="note" data-cloud-only>Шинэ админ нэмэх: админ болох хүн эхлээд сайтад нэвтэрнэ. Дараа нь Supabase → SQL Editor дээр<br><code>insert into teachers (user_id, role) select id, 'admin' from auth.users where email = 'имэйл@жишээ.mn';</code> гэж ажиллуулна. Хасах бол <code>delete from teachers where user_id = …</code>.</p>
+          <details class="howto" open data-claude-only>
+            <summary>Шинэ админ хэрхэн нэмэх вэ?</summary>
+            <ol>
+              <li>Тоглоомын хуудасны <b>Share</b> (Хуваалцах) цэсийг нээнэ.</li>
+              <li>Админ болох хүний имэйлийг бичээд эрхийг нь <b>Editor</b> болгоно.</li>
+              <li>Тэр хүн холбоосыг нээж өөрийн бүртгэлээр нэвтэрмэгц «Багш» цэс гарч, энэ жагсаалтад нэмэгдэнэ.</li>
+              <li>Админаас хасах бол Share цэснээс Editor эрхийг нь аваад, энд «Жагсаалтаас хасах» дарна.</li>
+            </ol>
+          </details>
+          <p class="note" data-claude-only>Editor эрхтэй хүн тоглоомын шинэ хувилбар нийтлэх боломжтой. Зөвхөн итгэдэг хамт олондоо өгөөрэй.</p>
+        </div>
+        <div class="card" data-claude-only>
+          <h3 class="h-sm">Холбоосоор урих</h3>
+          <p class="note" style="margin:0">Холбоосыг хуулж явуулахаас гадна хуудасны Share цэснээс сурагчдад <b>Contributor</b> эрх өгнө. Ингэхгүй бол тэд хуудсыг нээж, ахицаа хадгалж чадахгүй.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Тайлан: хэн юун дээр алдсан -->
+    <div id="tt-report" hidden>
+      <div class="report-grid">
+        <div>
+          <h3 class="h-sm">Тоглогч сонгох</h3>
+          <ul class="plist" id="r-players"></ul>
+        </div>
+        <div class="card" id="r-detail" aria-live="polite"></div>
+      </div>
+      <h3 class="h-sm" style="margin-top:24px">Ангийн хамгийн их алдсан асуултууд</h3>
+      <ol class="miss-list" id="r-top"></ol>
+    </div>
+
+    <!-- Асуултын сан ба зөв хариулт -->
+    <div id="tt-bank" hidden>
+      <div class="row" style="margin-bottom:14px">
+        <label class="label" for="b-game" style="margin:0">Харах хэсэг</label>
+        <select class="text-in" id="b-game" style="max-width:360px"></select>
+      </div>
+      <ol class="bank" id="b-list"></ol>
+    </div>
+
+    <!-- Код ба апп -->
+    <div id="tt-code" hidden>
+      <div class="home-grid" style="margin-top:0">
+        <div>
+          <h3 class="h-sm">Тоглоомын код</h3>
+          <div class="row" style="margin-bottom:10px">
+            <select class="text-in" id="c-file" style="max-width:260px" aria-label="Файл сонгох"></select>
+            <button type="button" class="btn-primary sm" id="c-show">Харах</button>
+          </div>
+          <pre class="code-view" id="c-view" tabindex="0">Файл сонгоод «Харах» дарна уу.</pre>
+        </div>
+        <div class="side-stack">
+          <div class="card" data-claude-only>
+            <h3 class="h-sm">Апп татаж авах</h3>
+            <p class="note" style="margin:0 0 10px">Интернэтгүй ажилладаг нэг файлтай апп. Зөвхөн та татаж авна.</p>
+            <div class="row" id="app-dl-row" hidden>
+              <button type="button" class="btn-primary sm" id="app-dl">Апп татаж авах (.html)</button>
+            </div>
+            <p class="note" id="dl-msg" aria-live="polite"></p>
+            <details class="howto">
+              <summary>Апп-ыг хэрхэн явуулж, ашиглах вэ?</summary>
+              <ol>
+                <li>«Апп татаж авах» товчоор <b>Delhiin_gadarga_app.html</b> файлыг хадгална.</li>
+                <li>Файлыг Messenger, имэйл эсвэл флаш дискээр бусдад явуулна.</li>
+                <li>Хүлээн авсан хүн файлыг давхар дарж Chrome, Edge зэрэг хөтчөөр нээнэ. Интернэт шаардлагагүй.</li>
+                <li>Ахиц тухайн төхөөрөмж дээр хадгалагдана. Нэг компьютер дээр олон хүн «Тоглогч солих» цэсээр ээлжилж тоглоно.</li>
+                <li>Файл апп дахь оноо энэ тайланд орохгүй.</li>
+              </ol>
+            </details>
+          </div>
+          <div class="card" data-cloud-only>
+            <h3 class="h-sm">Хамгаалалт</h3>
+            <p class="note" style="margin:0">Сурагч бүр имэйлээрээ нэвтэрнэ. Supabase-ийн хамгаалалтын дүрмээр сурагч зөвхөн өөрийн оноогоо бичиж, бусдын нэр, оноог л харна. Бүх сурагчийн алдаа, зөв хариулт, асуултын сан, ангийн код зөвхөн багш (teachers хүснэгтэд бүртгэлтэй хүн)-д харагдана.</p>
+          </div>
+          <div class="card" data-claude-only>
+            <h3 class="h-sm">Хамгаалалт</h3>
+            <p class="note" style="margin:0">Зөвхөн <b>та</b> (хуудсыг үүсгэсэн хүн) болон таны Editor эрх өгсөн админ бүх сурагчийн оноо, алдаа, зөв хариулт, асуултын сан, код, ангийн кодыг харна. Бусад нэвтэрсэн хүмүүс зөвхөн тоглож, тэргүүлэгчдийн самбараас нэр, аватар, оноог харна. Бусдын хувийн мэдээллийг уншиж чадахгүй. Share цэснээс сурагчдад <b>Contributor</b> эрх өгөөрэй. <b>Editor</b> эрхийг хэнд ч бүү өгөөрэй.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ТОГЛОЛТ -->
+  <section id="play" class="sheet" hidden aria-label="Асуулт">
+    <header class="hud">
+      <div class="hud-l">
+        <p class="qnum" id="q-num">Асуулт <b>1</b> / 6</p>
+        <p class="tag" id="q-tag">Түвшин 1</p>
+      </div>
+      <div class="hud-r">
+        <p class="score"><span class="lbl">Оноо</span><b id="score">0</b><span class="pop" id="pop" aria-hidden="true"></span></p>
+        <button type="button" class="btn-ghost sm" id="btn-quit">Гарах</button>
+      </div>
+    </header>
+    <div class="track" id="track" aria-hidden="true"></div>
+    <div class="timer" id="timer" data-zone="3" hidden>
+      <div class="clock"><span class="sec" id="sec">15</span><span class="zone-name" id="zone-name">Уул · 3 оноо</span></div>
+      <div class="profile" aria-hidden="true">
+        <div class="zone z3"><b>3 оноо</b><small>15–10 сек</small></div>
+        <div class="zone z2"><b>2 оноо</b><small>9–6 сек</small></div>
+        <div class="zone z1"><b>1 оноо</b><small>5–1 сек</small></div>
+        <div class="elapsed" id="elapsed"></div>
+        <div class="marker" id="marker"></div>
+      </div>
+    </div>
+    <h2 class="question" id="q-text" tabindex="-1"></h2>
+    <figure class="q-fig" id="q-fig" hidden></figure>
+    <div class="answers" id="answers"></div>
+    <div class="feedback" id="feedback" hidden aria-live="polite">
+      <div>
+        <div class="fb-head"><span class="pill" id="fb-pill"></span><strong id="fb-title"></strong></div>
+        <p class="fb-sub" id="fb-sub"></p>
+        <p class="fb-exp" id="fb-exp"></p>
+        <p class="fb-src" id="fb-src"></p>
+      </div>
+      <button type="button" class="btn-primary" id="btn-next">Дараагийн асуулт</button>
+    </div>
+  </section>
+
+  <!-- ДҮН -->
+  <section id="result" class="sheet" hidden aria-label="Дүн">
+    <div class="result">
+      <div class="res-main">
+        <p class="eyebrow" id="res-eyebrow"></p>
+        <div class="av-ring" id="res-av"></div>
+        <h2 class="res-verdict" id="res-verdict"></h2>
+        <p class="res-score" id="res-score"></p>
+        <p class="lead" id="res-desc"></p>
+        <div class="unlocks" id="res-unlocks"></div>
+        <div class="row" style="margin-top:10px">
+          <button type="button" class="btn-primary" id="btn-res-next">Дараагийн үе</button>
+          <button type="button" class="btn-ghost" id="btn-res-again">Дахин тоглох</button>
+          <button type="button" class="btn-ghost" data-nav="games">Тоглоомын цэс</button>
+        </div>
+      </div>
+      <div class="side-stack">
+        <div class="card">
+          <h3 class="h-sm">Өрсөлдөгчид</h3>
+          <div id="res-rival" style="margin-bottom:14px"></div>
+          <div id="res-leaders"></div>
+        </div>
+        <dl class="stats">
+          <div><dt>Зөв хариулт</dt><dd id="st-correct">0</dd></div>
+          <div><dt>3 оноотой</dt><dd id="st-three">0</dd></div>
+          <div><dt>Дундаж хугацаа</dt><dd id="st-avg">0</dd></div>
+        </dl>
+        <div>
+          <h3 class="h-sm">Асуулт бүрээр</h3>
+          <ol class="review" id="res-review"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="sheet narrow">
+    <p class="eyebrow">Үнэгүй шагнал</p>
+    <h2 class="h2" id="modal-title">Экспедицийн малгай</h2>
+    <div class="av-ring" id="modal-av"></div>
+    <p class="lead" style="margin:0 auto 18px">Эхний 5 түвшнийг амжилттай давлаа! Жинхэнэ газарзүйчийн малгай таных боллоо. Одоо хурдан хариулж оноо цуглуулаад дэлгүүрээс дүрээ хөгжүүлээрэй.</p>
+    <div class="row" style="justify-content:center">
+      <button type="button" class="btn-primary" id="btn-wear">Өмсөх</button>
+      <button type="button" class="btn-ghost" id="btn-later">Дараа</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="leader-modal" hidden role="dialog" aria-modal="true" aria-labelledby="lm-title">
+  <div class="sheet lm-sheet">
+    <button type="button" class="btn-ghost sm lm-x" id="lm-close">Хаах</button>
+    <div id="lm-body"></div>
+  </div>
+</div>
+
+<div class="corner">
+  <button type="button" class="icon-btn" id="btn-sound" aria-pressed="true" aria-label="Дуу" title="Дуу асаах / унтраах"></button>
+  <button type="button" class="icon-btn" id="btn-full" aria-label="Бүтэн дэлгэц" title="Бүтэн дэлгэц">
+    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="gadarga-cloud.js"></script>
+<script src="gadarga-qdata.js"></script>
+<script src="gadarga-avatar.js"></script>
+<script src="gadarga-worldmap.js"></script>
+<script src="gadarga-rocks.js"></script>
+<script src="gadarga-terrain.js"></script>
+<script src="gadarga-play.js"></script>
+<script src="gadarga-ui.js"></script>
+<script src="gadarga-ui-games.js"></script>
+<script src="gadarga-core.js"></script>
+</body>
+</html>
