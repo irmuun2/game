@@ -1,45 +1,92 @@
-// Тоглоом цэс: 1-р тоглоом (түвшнүүд), 2-р тоглоом (чулуулгийн газрын зураг), тоглогчид, багшийн самбар.
+// Тоглоом цэс: анги → бүлэг → түвшин, чулуулгийн газрын зураг (III бүлэг), тоглогчид, багшийн самбар.
 (function () {
   'use strict';
   const G = window.GAME;
-  const { LEVELS, BLOOM, SECTIONS, Q, Q1: QV1 } = window.GADARGA;
+  const C = window.GADARGA_CONTENT;
   const AV = window.GADARGA_AVATAR;
   const R = window.GADARGA_ROCKS;
+  const S = window.GADARGA_SOLAR;
   const $ = G.$, esc = G.esc;
 
   /* ---------- Тоглоомын цэс ---------- */
+  /* ---------- Анги ба бүлэг сонгох ---------- */
+  G.gradeSel = 0;
+  const ZC = ['--plain', '--upland', '--plateau', '--mountain', '--shallow', '--t3', '--t1'];
   G.renderGames = function () {
-    const me = G.me, free = me.levels['6'], map = me.levels.map;
-    $('#g1-prog').textContent = `${G.passedCount(me)}/5 түвшин давсан` + (free ? ` · Түвшин 6: шилдэг ${free.best} оноо` : '');
-    $('#g2-prog').textContent = `${me.mapSeen.length}/${R.SITES.length} газрыг судалсан` + (map ? ` · шилдэг ${map.best} оноо` : '');
+    const me = G.me;
+    if (!G.gradeSel) G.gradeSel = me.grade || 7;
+    const grades = C.grades();
+    $('#grade-tabs').innerHTML = grades.map(g => `<button type="button" class="grade-tab${g.chapters.length ? '' : ' soon'}" role="tab" data-grade="${g.g}" aria-selected="${g.g === G.gradeSel}" aria-label="${g.g}-р анги${g.chapters.length ? '' : ', удахгүй'}">` +
+      `<b>${g.g}</b><span>анги</span>${g.chapters.length ? '' : '<small>удахгүй</small>'}</button>`).join('');
+    const gr = C.grade(G.gradeSel);
+    const list = gr ? gr.chapters : [];
+    $('#chapters').innerHTML = list.length ? list.map((c, i) => {
+      const pr = G.chapterProgress(me, c.id), pct = pr.total ? Math.round(pr.passed / pr.total * 100) : 0;
+      const map = c.game === 'map' ? me.levels.map : null, sol = c.game === 'solar' ? me.levels.solar : null;
+      const status = pr.done ? `Бүх ${pr.total} түвшнийг давсан · шилдэг ${pr.best} оноо`
+        : pr.played ? `${pr.passed}/${pr.total} түвшин давсан` : `${c.levels.length} түвшин · ${c.count} асуулт`;
+      return `<article class="ch-card${pr.done ? ' done' : ''}" style="--zc:var(${ZC[i % ZC.length]})">` +
+        `<p class="ch-n">${c.n} бүлэг · ${c.pages}-р хуудас</p><h2 class="ch-t">${esc(c.title)}</h2>` +
+        `<p class="ch-p">${status}</p><div class="ch-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>` +
+        (c.game === 'map' ? `<p class="ch-p">Нэмэлт тоглоом: чулуулгийн газрын зураг · ${me.mapSeen.length}/${R.SITES.length} газар${map ? ` · шилдэг ${map.best}` : ''}</p>` : '') +
+        (c.game === 'solar' ? `<p class="ch-p">Нэмэлт тоглоом: нарны аймгийн аялал · ${me.solarSeen.length}/${S.BODIES.length} биет${sol ? ` · шилдэг ${sol.best}` : ''}</p>` : '') +
+        `<div class="row"><button type="button" class="btn-primary sm" data-ch="${c.id}">${pr.played ? 'Үргэлжлүүлэх' : 'Эхлэх'}</button>` +
+        (c.game === 'map' ? '<button type="button" class="btn-ghost sm" data-open-map>Газрын зураг</button>' : '') +
+        (c.game === 'solar' ? '<button type="button" class="btn-ghost sm" data-open-solar>Нарны аймаг</button>' : '') + '</div></article>';
+    }).join('')
+      : `<div class="card soon-card"><h2 class="h-sm">${G.gradeSel}-р ангийн бүлгүүд удахгүй нэмэгдэнэ</h2>` +
+        '<p class="note" style="margin:0">Сурах бичгийн бүлэг бүрээр түвшин, асуултууд бэлтгэгдэж байна. Одоохондоо бусад ангийн бүлгүүдээр тоглоорой.</p></div>';
     const tk = G.roomTokens(me);
     $('#g3-prog').textContent = `${me.rooms.length} өрөөнд нэгдсэн · Өрөө үүсгэх эрх: ${tk === Infinity ? 'хязгааргүй' : tk}`;
     G.renderRival($('#games-rival'));
     G.renderLeaders($('#games-leaders'), { limit: 10 });
   };
+  function pickGrade(g) {
+    if (!C.grade(g)) return;
+    G.gradeSel = g;
+    // Сүүлд сонгосон ангийг хадгална. Асуултыг урьдчилан ачаална.
+    if (G.me && G.me.grade !== g) { G.me.grade = g; G.save(); }
+    C.load(g);
+    G.renderGames();
+  }
 
   G.renderLevels = function () {
-    const me = G.me;
-    $('#stairs').innerHTML = LEVELS.map(l => {
-      const st = me.levels[l.n], open = G.levelOpen(l.n);
+    const me = G.me, c = C.chapter(G.curCh);
+    if (!c) { G.nav('games'); return; }
+    $('#levels-eyebrow').textContent = `${c.grade}-р анги · ${c.n} бүлэг · ${c.pages}-р хуудас`;
+    $('#levels-title').textContent = c.title;
+    const N = c.levels.length, k = N - 1;
+    const stairs = $('#stairs');
+    stairs.style.setProperty('--n', N);
+    stairs.innerHTML = c.levels.map((l, i) => {
+      const st = me.levels[C.levelKey(c.id, l.n)], open = G.levelOpen(c.id, l.n);
       const status = !open ? 'Түгжээтэй'
         : l.free ? (st ? `Шилдэг ${st.best} оноо` : 'Нээлттэй')
         : st && st.passed ? `Давсан · шилдэг ${st.best}` : 'Нээлттэй';
-      return `<button type="button" class="step" data-n="${l.n}" ${open ? '' : 'disabled'}>` +
-        `<span class="st-b">Түвшин</span><span class="st-n">${l.n}</span><span class="st-t">${l.title}</span>` +
+      // Өнгө ба өндөр: тал нутгаас (1) оргил (5) хүртэл, оноо цуглуулах түвшин (6).
+      const z = l.free ? 6 : k <= 1 ? 5 : Math.round(1 + i * 4 / (k - 1));
+      const h = Math.round(140 + i * 150 / Math.max(1, N - 1));
+      return `<button type="button" class="step" data-n="${l.n}" data-z="${z}" style="height:${h}px" ${open ? '' : 'disabled'}>` +
+        `<span class="st-b">Түвшин</span><span class="st-n">${l.n}</span><span class="st-t">${esc(l.title)}</span>` +
         `<span class="st-s">${status}</span></button>`;
     }).join('');
+    const last = c.levels[N - 1];
+    $('#stairs-note').textContent = `Түвшин бүрт 6 асуулт. 4-өөс доошгүй зөв хариулбал дараагийн түвшин нээгдэнэ. ` +
+      `Бүх түвшнийг давбал «${last.title}» түвшин нээгдэж, 10 асуултаар оноо цуглуулна.` +
+      (me.reward ? '' : ' Аль нэг бүлгийн бүх түвшнийг анх давахад үнэгүй шагнал авна.');
   };
 
   /* ---------- 2-р тоглоом: газрын зураг ---------- */
   let selected = null;
-  let mset = { sections: ['3.1', '3.2', '3.3', '3.4'], count: 10 };
+  const MAP_SECS = ['3.1', '3.2', '3.3', '3.4'];
+  const SECTIONS = (C.chapter(C.LEGACY) || {}).sections || {};
+  let mset = { sections: MAP_SECS.slice(), count: 10 };
   try {
     const s = JSON.parse(localStorage.getItem('gadarga-map-settings') || 'null');
-    if (s && Array.isArray(s.sections)) mset = { sections: s.sections.filter(k => SECTIONS[k]), count: [10, 15, 20, 'all'].includes(s.count) ? s.count : 10 };
+    if (s && Array.isArray(s.sections)) mset = { sections: s.sections.filter(k => MAP_SECS.includes(k)), count: [10, 15, 20, 'all'].includes(s.count) ? s.count : 10 };
   } catch (e) {}
   const saveMset = () => { try { localStorage.setItem('gadarga-map-settings', JSON.stringify(mset)); } catch (e) {} };
-  const Q1 = () => QV1;
+  const Q1 = () => C.Q1();
 
   G.renderMap = function () {
     const me = G.me, seen = me.mapSeen;
@@ -55,7 +102,7 @@
     $('#site-list').innerHTML = R.SITES.map(x =>
       `<button type="button" class="site-btn${seen.includes(x.id) ? ' seen' : ''}" data-site="${x.id}" aria-pressed="${x.id === selected}"><i style="background:${R.TYPES[x.t].color}"></i>${x.place}</button>`).join('');
 
-    $('#m-secs').innerHTML = Object.keys(SECTIONS).filter(k => k !== 'III').map(k =>
+    $('#m-secs').innerHTML = MAP_SECS.map(k =>
       `<button type="button" class="chip" data-sec="${k}" aria-pressed="${mset.sections.includes(k)}"><span class="chip-k">${k}</span><span>${SECTIONS[k]}</span><span class="chip-c">${Q1().filter(q => q.s === k).length}</span></button>`).join('');
     $('#m-count').innerHTML = [10, 15, 20, 'all'].map(c =>
       `<input type="radio" name="m-count" id="mc-${c}" value="${c}" ${String(mset.count) === String(c) ? 'checked' : ''}><label for="mc-${c}">${c === 'all' ? 'Бүгд' : c}</label>`).join('');
@@ -81,11 +128,101 @@
     if (mk && document.activeElement && document.activeElement.closest && document.activeElement.closest('#world')) mk.focus();
   }
 
+  /* ---------- II бүлэг: нарны аймгийн аялал ---------- */
+  let body = null, scount = 10;
+  try { const v = JSON.parse(localStorage.getItem('gadarga-solar-count') || 'null'); if ([10, 15, 20, 'all'].includes(v)) scount = v; } catch (e) {}
+  const solarCh = () => C.chapters().find(c => c.game === 'solar');
+  G.renderSolar = function () {
+    const me = G.me, seen = me.solarSeen;
+    $('#solar-view').innerHTML = S.svg(seen, body);
+    const b = body && S.body(body);
+    $('#body-card').innerHTML = b
+      ? `<span class="st-type" style="background:${b.color}">${b.kind}</span><h3>${b.name}</h3>` +
+        (S.facts(b).length ? '<dl class="bd-facts">' + S.facts(b).map(x => `<div><dt>${x[0]}</dt><dd>${x[1]}</dd></div>`).join('') + '</dl>' : '') +
+        `<p class="st-text">${b.text}</p><p class="st-fact"><b>Сонирхолтой нь:</b> ${b.fact}</p>`
+      : '<h3 style="margin-top:0">Нарны аймгийг судал</h3><p class="st-text">Нар, гараг, Сар, бага гаргуудын бүс дээр дарж сурах бичгийн 2.1 сэдвийн мэдээллийг уншаарай. Дор хаяж 3 биетийг судалсны дараа асуулт нээгдэнэ.</p>';
+    $('#body-count').textContent = `Судалсан биет: ${seen.length}/${S.BODIES.length}`;
+    $('#body-list').innerHTML = S.BODIES.map(x =>
+      `<button type="button" class="site-btn${seen.includes(x.id) ? ' seen' : ''}" data-body="${x.id}" aria-pressed="${x.id === body}"><i style="background:${x.color}"></i>${x.name}</button>`).join('');
+    $('#s-count').innerHTML = [10, 15, 20, 'all'].map(c =>
+      `<input type="radio" name="s-count" id="sc-${c}" value="${c}" ${String(scount) === String(c) ? 'checked' : ''}><label for="sc-${c}">${c === 'all' ? 'Бүгд' : c}</label>`).join('');
+    syncSolarStart();
+    renderOrder();
+  };
+  function syncSolarStart() {
+    const ch = solarCh(), seen = G.me.solarSeen.length, avail = ch ? C.extraPool(ch.id).length : 0;
+    const n = scount === 'all' ? avail : Math.min(scount, avail), btn = $('#s-start'), hint = $('#s-hint');
+    if (seen < 3) { btn.disabled = true; hint.textContent = `Эхлээд дор хаяж 3 биетийг судлаарай (${seen}/3).`; }
+    else if (!avail) { btn.disabled = true; hint.textContent = 'Асуулт ачаалагдсангүй.'; }
+    else { btn.disabled = false; hint.textContent = `${avail} асуултаас ${n} · дээд оноо ${n * 3}`; }
+  }
+  function pickBody(id) {
+    if (!S.body(id)) return;
+    body = id;
+    G.markSolar(id);
+    G.renderSolar();
+    const mk = document.querySelector(`#solar-view .bd[data-body="${id}"]`);
+    if (mk && document.activeElement && document.activeElement.closest && document.activeElement.closest('#solar-view')) mk.focus();
+  }
+
+  // Дарааллын сорил: 2.1 дүгээр хүснэгтийн 10 мөрийг нарнаас эхлэн дарна. Шилдэг дүнгээ ахиулсан хэмжээгээр оноо авна.
+  const ord = { on: false, next: 0, miss: 0, t0: 0, chips: S.ORDER.slice() };
+  function renderOrder() {
+    $('#order-slots').innerHTML = S.ORDER.map((id, i) => {
+      const done = i < ord.next || (!ord.on && ord.next === S.ORDER.length);
+      return `<li class="${done ? 'done' : ''}${ord.on && i === ord.next ? ' cur' : ''}"><b>${i + 1}</b><span>${done ? S.body(id).name : ''}</span></li>`;
+    }).join('');
+    $('#order-chips').innerHTML = ord.chips.map(id => {
+      const placed = S.ORDER.indexOf(id) < ord.next;
+      return `<button type="button" class="order-chip" data-ord="${id}" ${!ord.on || placed ? 'disabled' : ''}><i style="background:${S.body(id).color}"></i>${S.body(id).name}</button>`;
+    }).join('');
+    $('#order-start').textContent = ord.on ? 'Дахин эхлэх' : ord.next ? 'Дахин тоглох' : 'Эхлэх';
+    const best = G.me.levels.order;
+    if (!ord.on && !ord.next) $('#order-msg').textContent = best ? `Шилдэг дүн: ${best.best}/10` : 'Эхлэх дарахад нэрс холилдоно.';
+  }
+  function startOrder() {
+    Object.assign(ord, { on: true, next: 0, miss: 0, t0: performance.now(), chips: G.shuffle(S.ORDER) });
+    $('#order-msg').textContent = 'Нарнаас хамгийн ойр биетээс эхэл.';
+    renderOrder();
+    const first = document.querySelector('#order-chips .order-chip:not([disabled])');
+    if (first) first.focus();
+  }
+  function tapOrder(btn) {
+    if (!ord.on) return;
+    const id = btn.dataset.ord;
+    if (id !== S.ORDER[ord.next]) {
+      ord.miss++;
+      btn.classList.remove('bad'); void btn.offsetWidth; btn.classList.add('bad');
+      G.sfx('bad');
+      $('#order-msg').textContent = `Буруу. ${S.ordinal(ord.next + 1)} нь ${S.body(id).name} биш. Алдаа: ${ord.miss}`;
+      return;
+    }
+    ord.next++;
+    G.sfx('ok');
+    if (ord.next < S.ORDER.length) { $('#order-msg').textContent = `Зөв! Дараагийнх нь ${S.ordinal(ord.next + 1)}.`; renderOrder(); refocus(id); return; }
+    ord.on = false;
+    const sec = (performance.now() - ord.t0) / 1000, score = Math.max(0, 10 - ord.miss);
+    const prev = (G.me.levels.order && G.me.levels.order.best) || 0, gain = Math.max(0, score - prev);
+    G.applyRound({ key: 'order', score, passed: true, gain });
+    G.recordRound({ g: 'O', score, correct: score, n: 10, s: {}, ans: [] });
+    G.sfx('end');
+    $('#order-msg').textContent = `Дууслаа! ${sec.toFixed(1)} секунд, ${ord.miss} алдаа. Дүн: ${score}/10. ` +
+      (gain ? `+${gain} оноо!` : score === 10 ? 'Та аль хэдийн бүрэн дүн авсан тул оноо нэмэгдсэнгүй.' : `Шилдэг дүн ${prev}/10-аас давбал оноо авна.`);
+    renderOrder();
+    G.renderNav();
+  }
+  function refocus(id) {
+    const all = [...document.querySelectorAll('#order-chips .order-chip')];
+    const i = all.findIndex(b => b.dataset.ord === id);
+    const next = all.slice(i + 1).concat(all.slice(0, i)).find(b => !b.disabled);
+    if (next) next.focus();
+  }
+
   /* ---------- Тоглогчид ---------- */
   function playerRow(r, i, extra) {
     const p = r.p;
     const styles = AV.STYLES.filter(s => AV.wearingStyle(p.avatar, s.id)).map(s => s.name);
-    const sub = r.sub || [`${G.passedCount(p)}/5 түвшин`].concat(styles).join(' · ');
+    const sub = r.sub || [`${G.passedCount(p)} түвшин`].concat(styles).join(' · ');
     return `<li class="prow${r.me ? ' is-me' : ''}"><span class="rk">${i + 1}</span>${AV.svg(p.avatar, 44)}` +
       `<div style="min-width:0"><p class="nm">${esc(p.nick || 'Нэргүй')}${r.me ? ' (та)' : ''}</p><p class="sub">${esc(sub)}</p></div>` +
       (extra || `<span class="pt">${p.total}</span>`) + '</li>';
@@ -118,7 +255,7 @@
       const n = j + 4, a = achievementsOf(r.p).filter(x => x.ok).length;
       return `<li class="prow pick${r.me ? ' is-me' : ''}" data-lid="${esc(r.id)}" tabindex="0" role="button" aria-label="${n}-р байр, ${esc(r.p.nick || 'Нэргүй')}, ${r.p.total} оноо. Амжилтыг харах">` +
         `<span class="rk">${n}</span>${AV.svg(r.p.avatar, 44)}<div style="min-width:0"><p class="nm">${nm(r)}</p>` +
-        `<p class="sub"><span class="title-chip sm">${esc(G.titleOf(r.p.total).name)}</span> ${G.passedCount(r.p)}/5 түвшин · ${a} амжилт</p></div><span class="pt">${r.p.total} ${mv(r.id, n)}</span></li>`;
+        `<p class="sub"><span class="title-chip sm">${esc(G.titleOf(r.p.total).name)}</span> ${G.passedCount(r.p)} түвшин · ${a} амжилт</p></div><span class="pt">${r.p.total} ${mv(r.id, n)}</span></li>`;
     }).join('') + '</ol>' : '';
     const mine = G.mode === 'shared' && G.isAdmin
       ? '<p class="my-rank">Та багшийн эрхтэй тул жагсаалтад ордоггүй.</p>'
@@ -203,15 +340,19 @@
 
   /* ---------- Тэргүүлэгчийн амжилт ---------- */
   function achievementsOf(p) {
-    const s = G.pubStats(p), passed = G.passedCount(p), sites = R.SITES.length;
+    const s = G.pubStats(p), passed = G.passedCount(p), sites = R.SITES.length, done = s.chDone || 0;
     return [
-      { name: 'Анхны алхам', text: 'Түвшин 1 давсан', ok: passed >= 1 },
+      { name: 'Анхны алхам', text: 'Эхний түвшнээ давсан', ok: passed >= 1 },
       { name: 'Өндөрлөгт хүрэв', text: '3 түвшин давсан', ok: passed >= 3 },
-      { name: 'Оргилд гарав', text: 'Эхний 5 түвшнийг бүгдийг давсан', ok: passed >= 5 },
+      { name: 'Оргилд гарав', text: 'Нэг бүлгийн бүх түвшнийг давсан', ok: done >= 1 },
+      { name: 'Бүлгийн аялагч', text: '3 бүлгийн бүх түвшнийг давсан', ok: done >= 3 },
+      { name: 'Номын мастер', text: '7 бүлгийн бүх түвшнийг давсан', ok: done >= 7 },
       { name: 'Газарзүйч', text: 'Экспедицийн малгайг шагнал болгон авсан', ok: !!p.reward },
       { name: '100 оноо', text: 'Нийт 100 оноо цуглуулсан', ok: p.total >= 100 },
       { name: '200 оноо', text: 'Нийт 200 оноо цуглуулсан', ok: p.total >= 200 },
+      { name: '500 оноо', text: 'Нийт 500 оноо цуглуулсан', ok: p.total >= 500 },
       { name: 'Газрын зургийн судлаач', text: `Газрын зургийн ${sites} газрыг бүгдийг судалсан`, ok: s.seen >= sites },
+      { name: 'Сансрын аялагч', text: `Нарны аймгийн ${S.BODIES.length} биетийг бүгдийг судалсан`, ok: (s.sun || 0) >= S.BODIES.length },
       { name: 'Цуглуулагч', text: 'Дэлгүүрээс 5 ба түүнээс олон зүйл авсан', ok: s.items >= 5 },
       { name: 'Хип хоп стил', text: 'Хип хоп стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'hiphop') },
       { name: 'Албаны стил', text: 'Албаны стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'formal') }
@@ -232,10 +373,10 @@
       (r.viaCode ? `<p class="note" style="margin:6px 0 0">Онооны кодоор нэмсэн · ${fmtTime(r.at)} <button type="button" class="btn-ghost sm" data-rmcard="${esc(r.id)}">Жагсаалтаас хасах</button></p>` : '') +
       '</div></div>' +
       '<dl class="rd-stats lm-stats">' +
-      `<div><dt>Давсан түвшин</dt><dd>${G.passedCount(p)}/5</dd></div>` +
+      `<div><dt>Давсан түвшин</dt><dd>${G.passedCount(p)}</dd></div>` +
+      `<div><dt>Дуусгасан бүлэг</dt><dd>${s.chDone || 0}</dd></div>` +
       `<div><dt>Тоглосон тоглолт</dt><dd>${s.rounds}</dd></div>` +
-      `<div><dt>Түвшин 6: шилдэг оноо</dt><dd>${s.bestFree || '–'}</dd></div>` +
-      `<div><dt>2-р тоглоомын шилдэг</dt><dd>${s.bestMap || '–'}</dd></div>` +
+      `<div><dt>Газрын зургийн шилдэг</dt><dd>${s.bestMap || '–'}</dd></div>` +
       `<div><dt>Судалсан газар</dt><dd>${s.seen}/${R.SITES.length}</dd></div>` +
       `<div><dt>Дэлгүүрээс авсан</dt><dd>${s.items}</dd></div></dl>` +
       `<h3 class="h-sm">Амжилтууд · ${got}/${ach.length}</h3>` +
@@ -293,7 +434,7 @@
       return `<li class="prow" style="grid-template-columns:auto minmax(0,1fr) auto">${img}<div style="min-width:0"><p class="nm">${esc(acct(id))}${id === G.uid ? ' (та)' : ''}</p>` +
         `<p class="sub">${owner ? 'Үүсгэгч' : 'Админ (Editor)'}</p></div>${act}</li>`;
     }).join('') : '<li class="empty">Админ бүртгэгдээгүй байна.</li>';
-    const withSub = r => Object.assign(r, { sub: `Бүртгэл: ${acct(r.id)} · ${r.p.total} оноо · ${G.passedCount(r.p)}/5 түвшин` + (r.p.joinHash && r.p.joinHash === G.classHash ? ' · кодоор нэгдсэн' : '') });
+    const withSub = r => Object.assign(r, { sub: `Бүртгэл: ${acct(r.id)} · ${r.p.total} оноо · ${G.passedCount(r.p)} түвшин` + (r.p.joinHash && r.p.joinHash === G.classHash ? ' · кодоор нэгдсэн' : '') });
     const btn = (act, id, label, primary) => `<button type="button" class="${primary ? 'btn-primary' : 'btn-ghost'} sm" data-act="${act}" data-id="${esc(id)}">${label}</button>`;
     const render = (el, rows, acts, empty) => {
       el.innerHTML = rows.length
@@ -309,14 +450,36 @@
   };
 
   /* ---------- Багшийн самбарын хэсгүүд ---------- */
-  let ttab = 'access', rSel = null, bankSel = 'L1';
-  const qByKey = k => { const [p, i] = String(k).split(':'); return (p === 'L' ? Q : p === 'M' ? QV1 : [])[Number(i)]; };
+  let ttab = 'access', rSel = null, bankSel = '';
+  const qByKey = k => C.qByKey(k);
+  // Тайланд гарах асуултуудын ангийг ачаална (7-р ангиас бусад нь сонгоход л ачаалагддаг).
+  const askedLoad = new Set();
+  function ensureLoaded(keys, rerender) {
+    const ids = [...new Set(keys.map(C.chapterOfKey).filter(id => id && !C.loaded(id) && !askedLoad.has(id)))];
+    if (!ids.length) return;
+    ids.forEach(id => askedLoad.add(id));
+    C.loadFor(ids).then(() => { if (G.screen === 'teacher') rerender(); });
+  }
+  const keyLabel = k => {
+    if (String(k)[0] === 'M') return 'III бүлэг · Газрын зураг';
+    const c = C.chapter(C.chapterOfKey(k));
+    return c ? `${c.grade}-р анги · ${c.n} бүлэг` + (/^[^:]*x:/.test(k) ? ' · Нарны аймгийн аялал' : '') : '';
+  };
   const fmtTime = iso => {
     const d = new Date(iso); if (isNaN(d)) return '';
     const z = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
   };
-  const gameName = g => (g === 'M' ? '2-р тоглоом · Газрын зураг' : `1-р тоглоом · Түвшин ${Number(String(g).slice(1)) || '?'}`);
+  const gameName = g => {
+    const m = String(g || '').match(/^(?:(\d+-\d+)\/)?L(\d+)$/);
+    if (g === 'S') return 'II бүлэг · Нарны аймгийн аялал';
+    if (g === 'O') return 'II бүлэг · Дарааллын сорил';
+    if (!m) return 'III бүлэг · Газрын зургийн тоглоом';
+    const c = C.chapter(m[1] || C.LEGACY);
+    return c ? `${c.grade}-р анги · ${c.n} бүлэг · Түвшин ${m[2]}` : `Түвшин ${m[2]}`;
+  };
+  // Бүх сэдвийн түлхүүр сурах бичгийн дарааллаар (тайлангийн «Сэдвээр» хэсэгт).
+  const secOrder = () => C.grades().flatMap(g => g.chapters.flatMap(c => Object.keys(c.sections).map(s => C.secKey(g.g, s))));
   const classMisses = () => {
     const agg = {};
     Object.values(G.results).forEach(r => Object.keys((r && r.misses) || {}).forEach(k => { agg[k] = (agg[k] || 0) + (Number(r.misses[k]) || 0); }));
@@ -335,6 +498,8 @@
 
   async function renderReport() {
     const ids = Object.keys(G.players).filter(id => G.approved(id) || G.results[id]);
+    ensureLoaded(Object.values(G.results).flatMap(r => Object.keys((r && r.misses) || {})
+      .concat(((r && r.rounds) || []).flatMap(rd => (Array.isArray(rd.ans) ? rd.ans : Array.isArray(rd.wrong) ? rd.wrong : []).map(a => a && a.k)))), renderReport);
     let prof = {};
     try { prof = await G.user.profiles(ids); } catch (e) {}
     const acct = id => (prof[id] && prof[id].name) || (G.players[id] && G.players[id].email) || 'бүртгэлийн нэр харагдахгүй';
@@ -353,9 +518,10 @@
     if (!x) $('#r-detail').innerHTML = '<p class="note" style="margin:0">Тоглогч сонгоно уу.</p>';
     else {
       const r = x.r, rounds = Array.isArray(r.rounds) ? r.rounds : [], bySec = r.bySec || {};
-      const secRows = Object.keys(SECTIONS).filter(k => Array.isArray(bySec[k])).map(k => {
-        const c = Number(bySec[k][0]) || 0, n = Number(bySec[k][1]) || 0, pct = n ? Math.round(c / n * 100) : 0;
-        return `<div class="bar-row"><span>${k === 'III' ? '' : k + ' '}${SECTIONS[k]}</span><span class="bar"><i style="width:${pct}%"></i></span><span class="bar-v">${c}/${n}</span></div>`;
+      const secRows = secOrder().filter(k => Array.isArray(bySec[k])).map(k => {
+        const c = Number(bySec[k][0]) || 0, n = Number(bySec[k][1]) || 0, pct = n ? Math.round(c / n * 100) : 0, info = C.secInfo(k);
+        const label = info ? (info.grade === 7 ? '' : info.grade + '-р анги · ') + info.label : k;
+        return `<div class="bar-row"><span>${esc(label)}</span><span class="bar"><i style="width:${pct}%"></i></span><span class="bar-v">${c}/${n}</span></div>`;
       }).join('');
       const misses = r.misses || {};
       const topMiss = Object.keys(misses).sort((a, b) => misses[b] - misses[a]).slice(0, 5).map(k => {
@@ -379,7 +545,7 @@
       $('#r-detail').innerHTML =
         `<div class="rd-head">${AV.svg(x.p.avatar, 56)}<div><h3>${esc(x.p.nick || 'Нэргүй')}</h3><p class="sub" style="margin:0">Бүртгэл: ${esc(acct(x.id))}</p></div></div>` +
         `<dl class="rd-stats"><div><dt>Нийт оноо</dt><dd>${x.p.total}</dd></div><div><dt>Зөв хариулт</dt><dd>${x.acc === null ? '–' : x.acc + '%'}</dd></div>` +
-        `<div><dt>Хариулсан асуулт</dt><dd>${Number(r.answered) || 0}</dd></div><div><dt>Давсан түвшин</dt><dd>${G.passedCount(x.p)}/5</dd></div></dl>` +
+        `<div><dt>Хариулсан асуулт</dt><dd>${Number(r.answered) || 0}</dd></div><div><dt>Давсан түвшин</dt><dd>${G.passedCount(x.p)}</dd></div></dl>` +
         (secRows ? `<h4 class="h-sm">Сэдвээр</h4><div class="bars">${secRows}</div>` : '') +
         (topMiss ? `<h4 class="h-sm" style="margin-top:16px">Хамгийн их алдсан асуултууд</h4><ol class="miss-list">${topMiss}</ol>` : '') +
         `<h4 class="h-sm" style="margin-top:16px">Сүүлийн тоглолтууд: зөв (✓) ба буруу (✗) хариултууд</h4>` +
@@ -389,21 +555,38 @@
     const top = Object.keys(agg).sort((a, b) => agg[b] - agg[a]).slice(0, 10);
     $('#r-top').innerHTML = top.length ? top.map(k => {
       const q = qByKey(k);
-      return q ? `<li><span class="mq">${esc(q.q)}</span><span class="ma">${k[0] === 'L' ? '1-р тоглоом' : '2-р тоглоом'} · ${agg[k]} удаа алдсан · Зөв: ${esc(q.a[0])}</span></li>` : '';
+      return q ? `<li><span class="mq">${esc(q.q)}</span><span class="ma">${esc(keyLabel(k))} · ${agg[k]} удаа алдсан · Зөв: ${esc(q.a[0])}</span></li>` : '';
     }).join('') : '<li class="note" style="list-style:none">Одоогоор алдаа бүртгэгдээгүй байна.</li>';
   }
 
+  // Сонголт: «L|<бүлэг>|<түвшин>», «M|<сэдэв>» (газрын зургийн тоглоом) эсвэл «X|<бүлэг>» (нарны аймгийн аялал).
   function renderBank() {
     const sel = $('#b-game');
     if (!sel.options.length) {
-      sel.innerHTML = LEVELS.map(l => `<option value="L${l.n}">1-р тоглоом · Түвшин ${l.n} · ${l.title}</option>`).join('') +
-        ['3.1', '3.2', '3.3', '3.4'].map(s => `<option value="M${s}">2-р тоглоом · ${s} ${SECTIONS[s]}</option>`).join('');
+      sel.innerHTML = C.grades().filter(g => g.chapters.length).map(g => g.chapters.map(c =>
+        `<optgroup label="${g.g}-р анги · ${c.n} бүлэг «${esc(c.title)}»">` +
+        c.levels.map(l => `<option value="L|${c.id}|${l.n}">${c.n} бүлэг · Түвшин ${l.n} · ${esc(l.title)}</option>`).join('') + '</optgroup>' +
+        (c.game === 'solar' ? `<optgroup label="${c.n} бүлэг · Нарны аймгийн аялал"><option value="X|${c.id}">Нарны аймгийн аялал · нэмэлт ${c.extra} асуулт</option></optgroup>` : '') +
+        (c.game === 'map' ? `<optgroup label="${c.n} бүлэг · Газрын зургийн тоглоом">` +
+          MAP_SECS.map(s => `<option value="M|${s}">Газрын зураг · ${s} ${esc(SECTIONS[s] || '')}</option>`).join('') + '</optgroup>' : '')).join('')).join('');
+      if (!bankSel) bankSel = sel.options.length ? sel.options[0].value : '';
     }
     sel.value = bankSel;
-    const agg = classMisses(), v = bankSel;
-    const items = v[0] === 'L'
-      ? Q.map((q, i) => ({ q, k: 'L:' + i })).filter(x => x.q.l === Number(v.slice(1)))
-      : QV1.map((q, i) => ({ q, k: 'M:' + i })).filter(x => x.q.s === v.slice(1));
+    const agg = classMisses(), v = bankSel.split('|');
+    let items = [];
+    if (v[0] === 'L') {
+      const ch = v[1], n = Number(v[2]);
+      if (!C.loaded(ch)) {
+        $('#b-list').innerHTML = '<li class="note" style="list-style:none">Асуултуудыг ачаалж байна…</li>';
+        C.loadFor([ch]).then(() => { if (G.screen === 'teacher' && ttab === 'bank' && C.loaded(ch)) renderBank(); });
+        return;
+      }
+      items = C.questions(ch).map((q, i) => ({ q, k: C.qKey(ch, i) })).filter(x => x.q.l === n);
+    } else if (v[0] === 'M') {
+      items = C.Q1().map((q, i) => ({ q, k: 'M:' + i })).filter(x => x.q.s === v[1]);
+    } else if (v[0] === 'X') {
+      items = C.extra(v[1]).map((q, i) => ({ q, k: C.qKeyX(v[1], i) }));
+    }
     $('#b-list').innerHTML = items.map(({ q, k }) =>
       `<li><span class="bq">${esc(q.q)}</span>${agg[k] ? `<span class="bm">${agg[k]} удаа алдсан</span>` : ''}` +
       `<span class="bo">Зөв: <span class="ba">${esc(q.a[0])}</span> · Бусад: ${q.a.slice(1).map(esc).join(', ')} · ${q.p}-р хуудас${q.fig ? ' · зурагтай' : ''}</span></li>`).join('');
@@ -576,11 +759,20 @@
     $('#r-players').addEventListener('keydown', pickRow);
     $('#b-game').addEventListener('change', e => { bankSel = e.target.value; renderBank(); });
     $('#c-show').addEventListener('click', showCode);
-    $('#open-levels').addEventListener('click', () => G.nav('levels'));
-    $('#open-map').addEventListener('click', () => G.nav('map'));
+    $('#grade-tabs').addEventListener('click', e => { const b = e.target.closest('[data-grade]'); if (b) pickGrade(Number(b.dataset.grade)); });
+    $('#chapters').addEventListener('click', e => {
+      if (e.target.closest('[data-open-map]')) return G.nav('map');
+      if (e.target.closest('[data-open-solar]')) return G.nav('solar');
+      const b = e.target.closest('[data-ch]');
+      if (!b) return;
+      G.curCh = b.dataset.ch;
+      const c = C.chapter(G.curCh);
+      if (c) C.load(c.grade);
+      G.nav('levels');
+    });
     $('#stairs').addEventListener('click', e => {
       const b = e.target.closest('.step');
-      if (b && !b.disabled) G.startLevel(Number(b.dataset.n));
+      if (b && !b.disabled) G.startLevel(G.curCh, Number(b.dataset.n));
     });
     $('#world').addEventListener('click', e => { const m = e.target.closest('[data-site]'); if (m) pickSite(m.dataset.site); });
     $('#world').addEventListener('keydown', e => {
@@ -592,7 +784,7 @@
       const b = e.target.closest('[data-sec]');
       if (!b) return;
       const k = b.dataset.sec;
-      mset.sections = mset.sections.includes(k) ? mset.sections.filter(x => x !== k) : ['3.1', '3.2', '3.3', '3.4'].filter(x => x === k || mset.sections.includes(x));
+      mset.sections = mset.sections.includes(k) ? mset.sections.filter(x => x !== k) : MAP_SECS.filter(x => x === k || mset.sections.includes(x));
       b.setAttribute('aria-pressed', String(mset.sections.includes(k)));
       saveMset(); syncStart();
     });
@@ -602,6 +794,22 @@
       saveMset(); syncStart();
     });
     $('#m-start').addEventListener('click', () => G.startMap(mset.sections, mset.count));
+
+    $('#solar-view').addEventListener('click', e => { const m = e.target.closest('[data-body]'); if (m) pickBody(m.dataset.body); });
+    $('#solar-view').addEventListener('keydown', e => {
+      const m = e.target.closest('[data-body]');
+      if (m && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pickBody(m.dataset.body); }
+    });
+    $('#body-list').addEventListener('click', e => { const b = e.target.closest('[data-body]'); if (b) pickBody(b.dataset.body); });
+    $('#s-count').addEventListener('change', e => {
+      const v = e.target.value;
+      scount = v === 'all' ? 'all' : Number(v);
+      try { localStorage.setItem('gadarga-solar-count', JSON.stringify(scount)); } catch (err) {}
+      syncSolarStart();
+    });
+    $('#s-start').addEventListener('click', () => G.startSolar(scount));
+    $('#order-start').addEventListener('click', startOrder);
+    $('#order-chips').addEventListener('click', e => { const b = e.target.closest('[data-ord]'); if (b && !b.disabled) tapOrder(b); });
 
     $('#profile-new').addEventListener('click', () => G.newLocalProfile());
     $('#sync-save').addEventListener('click', () => {

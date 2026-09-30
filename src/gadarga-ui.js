@@ -109,7 +109,7 @@
     $('#home-me').innerHTML =
       `<div class="av-ring">${AV.svg(me.avatar, 120)}</div><div>` +
       `<p class="me-name">${esc(me.nick)}</p>` + titleLine(me) +
-      `<p class="me-pts"><b>${me.total}</b> нийт оноо · ${G.passedCount(me)}/5 түвшин давсан</p>` +
+      `<p class="me-pts"><b>${me.total}</b> нийт оноо · ${G.passedCount(me)} түвшин давсан</p>` +
       (badges ? `<div class="style-badges">${badges}</div>` : '') +
       `<div class="next-hat">${next
         ? `<p>Дараагийн шагнал: <b>${next.name}</b>, нийт ${next.need} оноо хүрэхэд (${next.need - me.total} дутуу)</p><div class="meter"><i style="width:${pct}%"></i></div>`
@@ -289,7 +289,9 @@
     btn.disabled = false;
     if (!res || !res.ok) return lgErr((res && res.error) || 'network');
     lgEmail = email; resendAt = Date.now() + 60000;
-    $('#lg-sent').textContent = `Код ${email} хаяг руу илгээгдлээ. Ирээгүй бол Spam хавтсаа шалгаарай. Код 10 минут хүчинтэй.`;
+    $('#lg-sent').textContent = G.cloudLoginMode
+      ? `Имэйл ${email} хаяг руу илгээгдлээ. Имэйлд ирсэн кодыг (6–8 оронтой) доор оруулна уу. Код биш холбоос (Confirm / Log in) ирсэн бол тэр холбоос дээр ганц удаа дарна уу. Сайт нэвтэрсэн байдлаар нээгдэнэ. Ирээгүй бол Spam хавтсаа шалгаарай.`
+      : `Код ${email} хаяг руу илгээгдлээ. Ирээгүй бол Spam хавтсаа шалгаарай. Код 10 минут хүчинтэй.`;
     lgStep(2);
     $('#lg-code').value = '';
     $('#lg-code').focus();
@@ -303,7 +305,8 @@
   }
   async function verifyCode() {
     const code = $('#lg-code').value.replace(/\D/g, '');
-    if (code.length !== 6) return lgErr('code');
+    // Supabase кодын уртыг 6–10 оронтой тохируулж болдог тул аль нь ч байсан хүлээн авна.
+    if (code.length < 6 || code.length > 10) return lgErr('code');
     const btn = $('#lg-verify');
     btn.disabled = true;
     if (G.cloudLoginMode) {

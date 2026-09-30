@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const G = window.GAME = window.GAME || {};
-  const { Q, Q1, LEVELS, BLOOM, SECTIONS } = window.GADARGA;
+  const C = window.GADARGA_CONTENT;
   const AV = window.GADARGA_AVATAR;
   const DURATION = 15;
   const ZONE_NAME = { 3: 'Уул', 2: 'Өндөрлөг', 1: 'Тал', 0: 'Далайн түвшин' };
@@ -50,27 +50,52 @@
     })()
   };
 
-  G.startLevel = function (n) {
-    const lv = LEVELS.find(l => l.n === n);
-    if (!lv || !G.levelOpen(n)) return;
-    const ids = Q.map((q, i) => i);
+  // ch: бүлэг ('7-1' …), n: түвшин. Тухайн ангийн асуулт ачаалагдаагүй бол эхлээд ачаална.
+  let starting = false;
+  G.startLevel = async function (ch, n) {
+    const c = C.chapter(ch), lv = c && c.levels.find(l => l.n === n);
+    if (!G.me || !lv || !G.levelOpen(ch, n) || starting) return;
+    if (!C.loaded(ch)) {
+      starting = true;
+      const ok = await C.load(c.grade);
+      starting = false;
+      if (!ok) { alert('Асуулт ачаалж чадсангүй. Интернэт холболтоо шалгаад дахин оролдоно уу.'); return; }
+    }
+    const Q = C.questions(ch), ids = Q.map((q, i) => i);
     let order;
     if (lv.free) {
-      const create = shuffle(ids.filter(i => Q[i].l === 6)).slice(0, 3);
-      const rest = shuffle(ids.filter(i => Q[i].l !== 6)).slice(0, lv.size - create.length);
-      order = shuffle(create.concat(rest));
+      // Оноо цуглуулах: өөрийн 3 асуулт + бүлгийн бусад түвшнээс санамсаргүй.
+      const own = shuffle(ids.filter(i => Q[i].l === lv.n)).slice(0, 3);
+      const rest = shuffle(ids.filter(i => Q[i].l !== lv.n)).slice(0, lv.size - own.length);
+      order = shuffle(own.concat(rest));
     } else {
       order = shuffle(ids.filter(i => Q[i].l === n)).slice(0, lv.size);
     }
-    begin({ kind: 'level', lv, pool: Q, order });
+    G.curCh = ch;
+    begin({ kind: 'level', ch, c, lv, pool: Q, order });
   };
 
-  // 2-р тоглоом: анхны асуултууд (GADARGA.Q1), сонгосон сэдэв ба тоогоор.
+  // Чулуулгийн газрын зургийн тоглоом (III бүлэг): анхны асуултууд, сонгосон сэдэв ба тоогоор.
   G.startMap = function (sections, count) {
-    const ids = Q1.map((q, i) => i).filter(i => sections.includes(Q1[i].s));
+    const Q1 = C.Q1(), ids = Q1.map((q, i) => i).filter(i => sections.includes(Q1[i].s));
     if (!ids.length) return;
     const n = count === 'all' ? ids.length : Math.min(count, ids.length);
-    begin({ kind: 'map', pool: Q1, order: shuffle(ids).slice(0, n), sections, count });
+    begin({ kind: 'map', ch: C.LEGACY, c: C.chapter(C.LEGACY), pool: Q1, order: shuffle(ids).slice(0, n), sections, count });
+  };
+
+  // Нарны аймгийн аялал (II бүлэг): нэмэлт асуултууд + 2.1 сэдвийн түвшний асуултууд.
+  G.startSolar = function (count) {
+    const ch = C.chapters().find(c => c.game === 'solar');
+    if (!ch || !G.me) return;
+    const P = C.extraPool(ch.id);
+    if (!P.length) return;
+    const n = count === 'all' ? P.length : Math.min(count, P.length);
+    begin({ kind: 'solar', ch: ch.id, c: ch, pool: P.map(x => x.q), keys: P.map(x => x.k), order: shuffle(P.map((x, i) => i)).slice(0, n), count });
+  };
+  // Нэмэлт тоглоомын нэр ба буцах дэлгэц.
+  const EXTRA = {
+    map: { tag: 'Газрын зураг', title: 'III бүлэг · Чулуулгийн газрын зураг', back: 'map', menu: 'Газрын зураг', g: 'M' },
+    solar: { tag: 'Нарны аймгийн аялал', title: 'II бүлэг · Нарны аймгийн аялал', back: 'solar', menu: 'Нарны аймаг', g: 'S' }
   };
 
   function begin(spec) {
@@ -96,8 +121,8 @@
     round.opts = shuffle(q.a.map((t, i) => ({ t, ok: i === 0 })));
     round.answered = false;
     $('#q-num').innerHTML = `Асуулт <b>${round.idx + 1}</b> / ${round.order.length}`;
-    const where = `${q.s === 'III' ? '' : q.s + ' '}${SECTIONS[q.s]}`;
-    $('#q-tag').textContent = round.kind === 'map' ? `2-р тоглоом · ${where}` : `Түвшин ${lv.n} · ${where}`;
+    const where = C.where(round.c, q.s);
+    $('#q-tag').textContent = EXTRA[round.kind] ? `${EXTRA[round.kind].tag} · ${where}` : `${round.c.n} бүлэг · Түвшин ${lv.n} · ${where}`;
     $('#q-text').textContent = q.q;
     const fig = $('#q-fig');
     fig.innerHTML = q.fig && FIGS[q.fig] ? FIGS[q.fig] : '';
@@ -180,7 +205,7 @@
       $('#fb-sub').textContent = `Зөв хариулт: ${q.a[0]}`;
     }
     $('#fb-exp').textContent = q.e;
-    $('#fb-src').textContent = `Сурах бичиг, ${q.p}-р хуудас`;
+    $('#fb-src').textContent = `Газар зүй ${round.c.grade}-р анги, сурах бичгийн ${q.p}-р хуудас`;
     $('#btn-next').textContent = round.idx === round.order.length - 1 ? 'Дүнг харах' : 'Дараагийн асуулт';
     $('#feedback').hidden = false;
     $('#score').textContent = round.score;
@@ -203,30 +228,32 @@
 
   function finish() {
     cancelAnimationFrame(raf);
-    const r = round, isMap = r.kind === 'map', lv = isMap ? { n: 'map', free: true } : r.lv, n = r.order.length;
+    const r = round, X = EXTRA[r.kind], lv = X ? { n: r.kind, free: true } : r.lv, n = r.order.length, c = r.c;
     const correct = r.log.filter(l => l.ok).length;
     const passed = lv.free ? true : correct >= lv.pass;
-    const out = G.applyRound({ level: lv.n, score: r.score, passed });
+    const out = G.applyRound({ key: X ? r.kind : C.levelKey(r.ch, lv.n), ch: X ? null : r.ch, score: r.score, passed });
     const me = G.me;
-    const pre = isMap ? 'M:' : 'L:', secs = {};
-    r.log.forEach(l => { const s = r.pool[l.qi].s, a = secs[s] || (secs[s] = [0, 0]); a[1]++; if (l.ok) a[0]++; });
+    const secs = {};
+    r.log.forEach(l => { const s = C.secKey(c.grade, r.pool[l.qi].s), a = secs[s] || (secs[s] = [0, 0]); a[1]++; if (l.ok) a[0]++; });
+    // Тайлан: g = тоглоом (M = газрын зураг, S = нарны аймаг, L3 = III бүлгийн 3-р түвшин, 7-1/L3 = бусад бүлэг), k = асуултын түлхүүр.
+    const keyOf = qi => (r.kind === 'map' ? 'M:' + qi : r.keys ? r.keys[qi] : C.qKey(r.ch, qi));
     G.recordRound({
-      g: isMap ? 'M' : 'L' + lv.n, score: r.score, correct, n, s: secs,
-      ans: r.log.map(l => ({ k: pre + l.qi, p: l.pick, ok: l.ok }))
+      g: X ? X.g : r.ch === C.LEGACY ? 'L' + lv.n : r.ch + '/L' + lv.n, score: r.score, correct, n, s: secs,
+      ans: r.log.map(l => ({ k: keyOf(l.qi), p: l.pick, ok: l.ok }))
     });
 
-    $('#res-eyebrow').textContent = isMap ? '2-р тоглоом · Чулуулгийн газрын зураг' : `1-р тоглоом · Түвшин ${lv.n} · ${lv.title}`;
+    $('#res-eyebrow').textContent = X ? X.title : `${c.grade}-р анги · ${c.n} бүлэг · Түвшин ${lv.n} · ${lv.title}`;
     $('#res-av').innerHTML = AV.svg(me.avatar, 120);
     const verdict = $('#res-verdict');
     verdict.classList.toggle('fail', !passed);
     verdict.textContent = lv.free ? 'Оноо цуглууллаа!' : passed ? `Түвшин ${lv.n}: амжилттай давлаа!` : 'Дахиад оролдоорой';
     $('#res-score').innerHTML = `<b>+${r.score}</b> оноо · нийт ${out.after} · дэлгүүрт ${G.balance(me)}`;
-    const nextLv = isMap ? null : LEVELS.find(l => l.n === lv.n + 1);
+    const nextLv = X ? null : c.levels.find(l => l.n === lv.n + 1);
     let desc;
-    if (isMap) desc = `${n} асуултаас ${correct}-д зөв хариуллаа. Оноогоо Нүүр цэсийн дэлгүүрт зарцуулж дүрээ хөгжүүлээрэй.`;
+    if (X) desc = `${n} асуултаас ${correct}-д зөв хариуллаа. Оноогоо Нүүр цэсийн дэлгүүрт зарцуулж дүрээ хөгжүүлээрэй.`;
     else if (lv.free) desc = 'Дахин тоглож оноогоо нэмээд шинэ чимэглэл нээгээрэй.';
     else if (!passed) desc = `Давахын тулд ${n}-аас ${lv.pass} зөв хариулт хэрэгтэй. Та ${correct} зөв хариуллаа.`;
-    else if (nextLv && nextLv.free) desc = 'Эхний 5 түвшнийг бүгдийг нь давлаа! Түвшин 6 «Оноо цуглуулах» нээгдлээ.';
+    else if (nextLv && nextLv.free) desc = `«${c.title}» бүлгийн бүх түвшнийг давлаа! Түвшин ${nextLv.n} «${nextLv.title}» нээгдлээ.`;
     else desc = `Түвшин ${nextLv.n} нээгдлээ: ${nextLv.title}.`;
     $('#res-desc').textContent = desc;
     const t0 = G.titleOf(out.before), t1 = G.titleOf(out.after);
@@ -235,9 +262,11 @@
 
     const btnNext = $('#btn-res-next');
     btnNext.hidden = !(passed && nextLv);
-    if (nextLv) btnNext.textContent = nextLv.free ? 'Түвшин 6: Оноо цуглуулах' : `Түвшин ${nextLv.n} рүү`;
-    btnNext.onclick = () => nextLv && G.startLevel(nextLv.n);
-    $('#btn-res-again').onclick = () => (isMap ? G.startMap(r.sections, r.count) : G.startLevel(lv.n));
+    if (nextLv) btnNext.textContent = nextLv.free ? `Түвшин ${nextLv.n}: ${nextLv.title}` : `Түвшин ${nextLv.n} рүү`;
+    btnNext.onclick = () => nextLv && G.startLevel(r.ch, nextLv.n);
+    $('#btn-res-again').onclick = () => (r.kind === 'map' ? G.startMap(r.sections, r.count) : r.kind === 'solar' ? G.startSolar(r.count) : G.startLevel(r.ch, lv.n));
+    $('#btn-res-menu').textContent = X ? X.menu : 'Бүлгийн түвшнүүд';
+    $('#btn-res-menu').onclick = () => G.nav(X ? X.back : 'levels');
 
     const answered = r.log.filter(l => l.pick !== null);
     const avg = answered.length ? answered.reduce((s, l) => s + l.used, 0) / answered.length : 0;
@@ -260,7 +289,8 @@
 
   function quit() {
     if (Date.now() - quitAt < 3000) {
-      cancelAnimationFrame(raf); round = null; resetQuit(); G.nav('games');
+      const back = round && EXTRA[round.kind] ? EXTRA[round.kind].back : 'levels';
+      cancelAnimationFrame(raf); round = null; resetQuit(); G.nav(back);
     } else {
       quitAt = Date.now();
       $('#btn-quit').textContent = 'Дахин дарж гарна';

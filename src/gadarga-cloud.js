@@ -5,6 +5,15 @@
   const cfg = window.GADARGA_CONFIG || {};
   if (!cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase || !window.supabase.createClient) return;
 
+  // Имэйлийн холбоос бүтэлгүйтвэл Supabase хаягт алдааг бичээд буцаадаг (жишээ нь #error_code=otp_expired).
+  // Номын сан хаягийг цэвэрлэхээс өмнө уншиж, нэвтрэх дэлгэц дээр ойлгомжтой тайлбар харуулна.
+  const urlParams = new URLSearchParams((location.hash || '').replace(/^#/, '') + '&' + (location.search || '').replace(/^\?/, ''));
+  const urlErr = urlParams.get('error_code') || urlParams.get('error');
+  const urlErrText = !urlErr ? ''
+    : /otp_expired|expired/i.test(urlErr + ' ' + (urlParams.get('error_description') || ''))
+      ? 'Имэйлийн холбоосны хугацаа дууссан эсвэл аль хэдийн ашиглагдсан байна. Дахин «Код авах» дараад, хамгийн сүүлд ирсэн имэйлийн холбоос дээр ганц удаа дарна уу.'
+      : 'Имэйлийн холбоосоор нэвтэрч чадсангүй (' + String(urlParams.get('error_description') || urlErr).slice(0, 120) + '). Дахин «Код авах» дарна уу.';
+
   const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
@@ -15,8 +24,10 @@
     sendOtp: email => sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin } }),
     verifyOtp: (email, token) => sb.auth.verifyOtp({ email, token, type: 'email' }),
     signOut: () => sb.auth.signOut(),
-    email: () => (session && session.user && session.user.email) || ''
+    email: () => (session && session.user && session.user.email) || '',
+    urlError: urlErrText
   };
+  if (urlErr) { try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   sb.auth.onAuthStateChange((_e, s) => { session = s || null; });
 
   /* ---------- db: «цуглуулга/баримт» замтай JSON баримтуудыг public.docs хүснэгтэд хадгална ---------- */

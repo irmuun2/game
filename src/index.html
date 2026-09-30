@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Дэлхийн гадарга сорил</title>
-<meta name="description" content="Газар зүй 7-р анги, III бүлэг «Дэлхийн гадарга»: аватартай асуулт хариултын тоглоом.">
+<meta name="description" content="Газар зүйн сурах бичгийн бүлэг бүрээр аватартай асуулт хариултын тоглоом.">
 <meta name="theme-color" content="#07233a">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20width%3D'64'%20height%3D'64'%20rx%3D'14'%20fill%3D'%2307233a'%2F%3E%3Cpath%20d%3D'M4%2052%20L22%2026%20L30%2036%20L42%2014%20L60%2052%20Z'%20fill%3D'%23a9622f'%2F%3E%3Cpath%20d%3D'M36%2025%20L42%2014%20L48%2027%20Z'%20fill%3D'%23eef3f0'%2F%3E%3Crect%20y%3D'50'%20width%3D'64'%20height%3D'14'%20fill%3D'%231d6493'%2F%3E%3C%2Fsvg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,7 +36,7 @@
   </div>
 
   <section id="loading" class="sheet narrow">
-    <p class="eyebrow">Газар зүй · 7-р анги · III бүлэг</p>
+    <p class="eyebrow">Газар зүйн асуулт хариултын тоглоом</p>
     <h1>Дэлхийн <span>гадарга</span></h1>
     <p class="note">Тоглогчийн мэдээллийг ачаалж байна…</p>
   </section>
@@ -65,7 +65,7 @@
     <div class="login-step" id="lg-step2" hidden>
       <p class="note" id="lg-sent" style="margin:0"></p>
       <label class="label" for="lg-code">Имэйлд ирсэн код</label>
-      <input class="text-in code-in" id="lg-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+      <input class="text-in code-in" id="lg-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="Имэйлд ирсэн код">
       <button type="button" class="btn-primary" id="lg-verify">Нэвтрэх</button>
       <div class="row" style="justify-content:center">
         <button type="button" class="btn-ghost sm" id="lg-resend">Код дахин авах</button>
@@ -172,25 +172,12 @@
 
   <!-- ТОГЛООМ ЦЭС -->
   <section id="games" class="sheet" hidden aria-labelledby="games-title">
-    <p class="eyebrow">Газар зүй · 7-р анги · III бүлэг</p>
-    <h1 id="games-title">Дэлхийн <span>гадарга</span></h1>
+    <p class="eyebrow">Газар зүй · сурах бичгийн бүлгээр</p>
+    <h1 id="games-title">Оргил <span>руу</span></h1>
     <div id="games-rival" style="margin-top:20px"></div>
-    <div class="game-cards">
-      <article class="game-card g1">
-        <p class="gc-n">1-р тоглоом</p>
-        <h2 class="h2">Оргил руу</h2>
-        <p class="lead">Түвшин 1-ээс 6 хүртэл. Эхний 5 түвшнийг давбал үнэгүй шагнал авна.</p>
-        <p class="gc-prog" id="g1-prog"></p>
-        <button type="button" class="btn-primary" id="open-levels">Түвшин сонгох</button>
-      </article>
-      <article class="game-card g2">
-        <p class="gc-n">2-р тоглоом</p>
-        <h2 class="h2">Чулуулгийн газрын зураг</h2>
-        <p class="lead">Дэлхийн газрын зураг дээрээс ямар чулуу хаана их олддогийг судлаад, анхны 71 асуултаас хариулна.</p>
-        <p class="gc-prog" id="g2-prog"></p>
-        <button type="button" class="btn-primary" id="open-map">Газрын зураг нээх</button>
-      </article>
-    </div>
+    <h2 class="h-sm" style="margin:24px 0 10px">Анги сонгох</h2>
+    <div class="grade-tabs" id="grade-tabs" role="tablist" aria-label="Анги"></div>
+    <div class="chapters" id="chapters"></div>
     <article class="game-card g3" style="margin-top:16px">
       <p class="gc-n">Өрөөнүүд</p>
       <h2 class="h2">Анги ба найзуудын өрөө</h2>
@@ -215,21 +202,67 @@
   <section id="levels" class="sheet" hidden aria-labelledby="levels-title">
     <div class="bar-top">
       <div>
-        <p class="eyebrow">1-р тоглоом</p>
-        <h2 class="h2" id="levels-title">Оргил руу: тал нутгаас оргил хүртэл</h2>
+        <p class="eyebrow" id="levels-eyebrow"></p>
+        <h2 class="h2" id="levels-title"></h2>
       </div>
-      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+      <button type="button" class="btn-ghost sm" data-nav="games">Бүлгүүд</button>
     </div>
     <div class="stairs" id="stairs"></div>
     <div class="stairs-base" aria-hidden="true"></div>
-    <p class="stairs-note">Түвшин бүрт 6 асуулт. 4-өөс доошгүй зөв хариулбал дараагийн түвшин нээгдэнэ. Эхний 5 түвшнийг давбал үнэгүй шагнал авна.</p>
+    <p class="stairs-note" id="stairs-note"></p>
+  </section>
+
+  <!-- НЭМЭЛТ ТОГЛООМ: НАРНЫ АЙМГИЙН АЯЛАЛ (II бүлэг) -->
+  <section id="solar" class="sheet wide" hidden aria-labelledby="solar-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">II бүлэг · Нэмэлт тоглоом</p>
+        <h2 class="h2" id="solar-title">Нарны аймгийн аялал</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+    </div>
+    <h3 class="h-sm sol-step"><span>1</span>Судлах</h3>
+    <div class="map-grid">
+      <div>
+        <div class="solar-wrap" id="solar-view"></div>
+        <p class="note">Зургийн зай бодит хэмжээгээр биш. Бодит зайг 2.1 дүгээр хүснэгтээр (16-р хуудас) бодно: загварын 1 см = 15 сая км.</p>
+      </div>
+      <div class="side-stack">
+        <div class="card site-card" id="body-card" aria-live="polite"></div>
+        <p class="note" id="body-count"></p>
+        <div class="site-list" id="body-list"></div>
+      </div>
+    </div>
+    <div class="sol-games">
+      <div class="card">
+        <h3 class="h-sm sol-step"><span>2</span>Дарааллын сорил</h3>
+        <p class="note" style="margin:0 0 12px">Нарнаас эхлээд 2.1 дүгээр хүснэгтийн дарааллаар дараарай. Буруу дарах бүрд 1 оноо хасагдана.</p>
+        <ol class="order-slots" id="order-slots"></ol>
+        <div class="order-chips" id="order-chips"></div>
+        <div class="row" style="margin-top:14px">
+          <button type="button" class="btn-primary sm" id="order-start">Эхлэх</button>
+          <p class="hint" id="order-msg" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="h-sm sol-step"><span>3</span>Асуулт</h3>
+        <fieldset class="field">
+          <legend class="label">Асуултын тоо</legend>
+          <div class="seg-row" id="s-count"></div>
+        </fieldset>
+        <div class="go" style="margin-top:14px">
+          <button type="button" class="btn-primary" id="s-start">Асуулт эхлэх</button>
+          <p class="hint" id="s-hint"></p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 2-Р ТОГЛООМ: ЧУЛУУЛГИЙН ГАЗРЫН ЗУРАГ -->
   <section id="map" class="sheet wide" hidden aria-labelledby="map-title">
     <div class="bar-top">
       <div>
-        <p class="eyebrow">2-р тоглоом</p>
+        <p class="eyebrow">III бүлэг · Нэмэлт тоглоом</p>
         <h2 class="h2" id="map-title">Ямар чулуу хаана их олддог вэ?</h2>
       </div>
       <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
@@ -552,6 +585,7 @@
         <div class="row" style="margin-top:10px">
           <button type="button" class="btn-primary" id="btn-res-next">Дараагийн үе</button>
           <button type="button" class="btn-ghost" id="btn-res-again">Дахин тоглох</button>
+          <button type="button" class="btn-ghost" id="btn-res-menu">Бүлгийн түвшнүүд</button>
           <button type="button" class="btn-ghost" data-nav="games">Тоглоомын цэс</button>
         </div>
       </div>
@@ -580,7 +614,7 @@
     <p class="eyebrow">Үнэгүй шагнал</p>
     <h2 class="h2" id="modal-title">Экспедицийн малгай</h2>
     <div class="av-ring" id="modal-av"></div>
-    <p class="lead" style="margin:0 auto 18px">Эхний 5 түвшнийг амжилттай давлаа! Жинхэнэ газарзүйчийн малгай таных боллоо. Одоо хурдан хариулж оноо цуглуулаад дэлгүүрээс дүрээ хөгжүүлээрэй.</p>
+    <p class="lead" style="margin:0 auto 18px">Бүлгийн бүх түвшнийг амжилттай давлаа! Жинхэнэ газарзүйчийн малгай таных боллоо. Одоо хурдан хариулж оноо цуглуулаад дэлгүүрээс дүрээ хөгжүүлээрэй.</p>
     <div class="row" style="justify-content:center">
       <button type="button" class="btn-primary" id="btn-wear">Өмсөх</button>
       <button type="button" class="btn-ghost" id="btn-later">Дараа</button>
@@ -605,10 +639,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="gadarga-cloud.js"></script>
+<script src="gadarga-catalog.js"></script>
 <script src="gadarga-qdata.js"></script>
+<script src="gadarga-content.js"></script>
 <script src="gadarga-avatar.js"></script>
 <script src="gadarga-worldmap.js"></script>
 <script src="gadarga-rocks.js"></script>
+<script src="gadarga-solar.js"></script>
 <script src="gadarga-terrain.js"></script>
 <script src="gadarga-play.js"></script>
 <script src="gadarga-ui.js"></script>

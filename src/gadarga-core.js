@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const G = window.GAME;
-  const { LEVELS } = window.GADARGA;
+  const C = window.GADARGA_CONTENT;
   const AV = window.GADARGA_AVATAR;
   const $ = G.$;
 
@@ -12,8 +12,8 @@
     db: null, user: null, me: null, players: {}, approvals: {}, classHash: '', classCode: '', localNote: ''
   });
 
-  const SCREENS = ['loading', 'blocked', 'login', 'create', 'wait', 'home', 'games', 'levels', 'map', 'rooms', 'room', 'board', 'profiles', 'teacher', 'play', 'result'];
-  const NAV_SCREENS = { home: 'home', games: 'games', levels: 'games', map: 'games', rooms: 'games', room: 'games', board: 'board', profiles: 'profiles', teacher: 'teacher' };
+  const SCREENS = ['loading', 'blocked', 'login', 'create', 'wait', 'home', 'games', 'levels', 'map', 'solar', 'rooms', 'room', 'board', 'profiles', 'teacher', 'play', 'result'];
+  const NAV_SCREENS = { home: 'home', games: 'games', levels: 'games', map: 'games', solar: 'games', rooms: 'games', room: 'games', board: 'board', profiles: 'profiles', teacher: 'teacher' };
   G.show = function (name) {
     G.screen = name;
     document.body.dataset.screen = name;
@@ -26,7 +26,7 @@
     if (tab) G.renderNav();
     window.scrollTo(0, 0);
   };
-  const RENDER = { home: 'renderHome', games: 'renderGames', levels: 'renderLevels', map: 'renderMap', rooms: 'renderRooms', room: 'renderRoom', board: 'renderBoard', profiles: 'renderProfiles', teacher: 'renderTeacher' };
+  const RENDER = { home: 'renderHome', games: 'renderGames', levels: 'renderLevels', map: 'renderMap', solar: 'renderSolar', rooms: 'renderRooms', room: 'renderRoom', board: 'renderBoard', profiles: 'renderProfiles', teacher: 'renderTeacher' };
   G.nav = function (name) {
     if (G.inRound()) return;
     const r = RENDER[name];
@@ -39,17 +39,18 @@
   // Одоогийн дэлгэцийг гүйлгэлтийг нь хөндөхгүйгээр дахин зурна.
   G.refresh = function () {
     const r = RENDER[G.screen];
-    if (r && G.screen !== 'map') G[r]();
+    // Газрын зураг, нарны аймгийн дэлгэцийг (сонголт, дарааллын сорил) дундуур нь дахин зурахгүй.
+    if (r && G.screen !== 'map' && G.screen !== 'solar') G[r]();
     if (NAV_SCREENS[G.screen]) G.renderNav();
   };
   G.goHome = () => G.nav('home');
 
   const now = () => new Date().toISOString();
   const ITEM_IDS = AV.ITEMS.filter(i => i.price).map(i => i.id);
-  G.newPlayer = (nick, avatar) => ({ nick, avatar: AV.normalize(avatar), total: 0, spent: 0, owned: [], levels: {}, reward: false, rounds: 0, mapSeen: [], joinHash: '', rooms: [], roomsMade: 0, created: now(), updated: now() });
+  G.newPlayer = (nick, avatar) => ({ nick, avatar: AV.normalize(avatar), total: 0, spent: 0, owned: [], levels: {}, reward: false, rounds: 0, mapSeen: [], joinHash: '', rooms: [], roomsMade: 0, grade: 7, solarSeen: [], created: now(), updated: now() });
   G.normalizePlayer = function (p) {
     p = p && typeof p === 'object' ? p : {};
-    const siteIds = window.GADARGA_ROCKS.SITES.map(s => s.id);
+    const siteIds = window.GADARGA_ROCKS.SITES.map(s => s.id), bodyIds = window.GADARGA_SOLAR.BODIES.map(b => b.id);
     return {
       nick: typeof p.nick === 'string' ? p.nick.slice(0, 20) : '',
       avatar: AV.normalize(p.avatar),
@@ -59,14 +60,18 @@
       levels: p.levels && typeof p.levels === 'object' ? JSON.parse(JSON.stringify(p.levels)) : {},
       reward: !!p.reward, rounds: Number(p.rounds) || 0,
       mapSeen: Array.isArray(p.mapSeen) ? p.mapSeen.filter(id => siteIds.includes(id)) : [],
+      solarSeen: Array.isArray(p.solarSeen) ? [...new Set(p.solarSeen.filter(id => bodyIds.includes(id)))] : [],
       joinHash: typeof p.joinHash === 'string' ? p.joinHash : '',
       email: typeof p.email === 'string' ? p.email.slice(0, 254) : '',
       rooms: Array.isArray(p.rooms) ? [...new Set(p.rooms.filter(c => /^[A-Z0-9]{6}$/.test(c)))].slice(0, 12) : [],
       roomsMade: Math.max(0, Math.floor(Number(p.roomsMade) || 0)),
+      grade: G.gradeOk(p.grade) ? Number(p.grade) : 7,
       created: String(p.created || ''), updated: String(p.updated || '')
     };
   };
   G.balance = p => Math.max(0, (p.total || 0) - (p.spent || 0));
+  // Тоглоом цэсэнд сүүлд сонгосон анги (өөр төхөөрөмж дээр ч тэр ангиа нээнэ).
+  G.gradeOk = g => C.grades().some(x => x.g === Number(g));
 
   /* ---------- Цол: нийт оноогоор тал нутгаас дэлхийн мастер хүртэл ахина ---------- */
   G.TITLES = [
@@ -86,21 +91,35 @@
     return { i, name: G.TITLES[i].name, next: G.TITLES[i + 1] || null };
   };
   G.PLACE_TITLES = ['Алт', 'Мөнгө', 'Хүрэл'];
-  G.levelOpen = function (n) {
+  // Бүлэг бүрт түвшин 1 нээлттэй, дараагийнх нь өмнөхөө давахад нээгдэнэ. Бүх бүлэг нээлттэй.
+  G.levelOpen = function (ch, n) {
     if (n === 1) return true;
-    const prev = G.me && G.me.levels[String(n - 1)];
+    const prev = G.me && G.me.levels[C.levelKey(ch, n - 1)];
     return !!(prev && prev.passed);
   };
+  const lvPassed = (p, ch, l) => !!(p.levels && p.levels[C.levelKey(ch, l.n)] && p.levels[C.levelKey(ch, l.n)].passed);
+  // Бүлгийн ахиц: давсан ба нийт (оноо цуглуулах түвшинг оруулахгүй) түвшин, шилдэг оноо.
+  G.chapterProgress = function (p, ch) {
+    const c = C.chapter(ch);
+    if (!c) return { passed: 0, total: 0, done: false, best: 0, played: false };
+    const lv = c.levels.filter(l => !l.free);
+    const passed = lv.filter(l => lvPassed(p, ch, l)).length;
+    const st = c.levels.map(l => p.levels && p.levels[C.levelKey(ch, l.n)]).filter(Boolean);
+    return { passed, total: lv.length, done: passed === lv.length, best: Math.max(0, ...st.map(x => x.best || 0)), played: st.length > 0 };
+  };
   G.passedCount = p => (typeof p.passedN === 'number' ? p.passedN
-    : LEVELS.filter(l => !l.free && p.levels && p.levels[l.n] && p.levels[l.n].passed).length);
+    : C.chapters().reduce((s, c) => s + G.chapterProgress(p, c.id).passed, 0));
+  G.chaptersDone = p => (p.pub && typeof p.pub.chDone === 'number' ? p.pub.chDone
+    : C.chapters().filter(c => G.chapterProgress(p, c.id).done).length);
 
   /* ---------- Тэргүүлэгчдийн самбар: бусдад харагдах цорын ганц мэдээлэл ---------- */
   G.board = {};
   // Бусдад харагдах амжилтын үзүүлэлтүүд.
   G.pubStats = p => p.pub || {
-    items: (p.owned || []).length, seen: (p.mapSeen || []).length, rounds: p.rounds || 0,
+    items: (p.owned || []).length, seen: (p.mapSeen || []).length, sun: (p.solarSeen || []).length, rounds: p.rounds || 0,
     bestFree: (p.levels && p.levels['6'] && p.levels['6'].best) || 0,
-    bestMap: (p.levels && p.levels.map && p.levels.map.best) || 0
+    bestMap: (p.levels && p.levels.map && p.levels.map.best) || 0,
+    chDone: G.chaptersDone(p)
   };
   G.boardDoc = me => Object.assign({
     nick: me.nick, avatar: AV.normalize(me.avatar), total: me.total, passed: G.passedCount(me),
@@ -109,8 +128,10 @@
   const num = (v, max) => Math.max(0, Math.min(max, Math.floor(Number(v) || 0)));
   G.fromBoard = d => {
     const p = G.normalizePlayer(d);
-    p.passedN = num(d && d.passed, 5);
-    p.pub = { items: num(d.items, 99), seen: num(d.seen, 99), rounds: num(d.rounds, 1e6), bestFree: num(d.bestFree, 999), bestMap: num(d.bestMap, 999) };
+    p.passedN = num(d && d.passed, 999);
+    // Өмнөх хувилбарт зөвхөн III бүлэг (5 түвшин) байсан тул 5 түвшин давсан бол 1 бүлэг дуусгасан гэж тооцно.
+    const chDone = d && d.chDone != null ? num(d.chDone, 99) : (p.passedN >= 5 ? 1 : 0);
+    p.pub = { items: num(d.items, 99), seen: num(d.seen, 99), sun: num(d.sun, 99), rounds: num(d.rounds, 1e6), bestFree: num(d.bestFree, 999), bestMap: num(d.bestMap, 999), chDone };
     return p;
   };
 
@@ -388,7 +409,7 @@
   G.myCard = function () {
     const me = G.me, pub = G.boardDoc(me);
     return encode('GDG1', { v: 1, id: local.cur, n: me.nick, av: pub.avatar, s: me.total, p: pub.passed, rw: pub.reward ? 1 : 0,
-      st: [pub.items, pub.seen, pub.rounds, pub.bestFree, pub.bestMap], rm: roomTuples(me.rooms), at: now() });
+      st: [pub.items, pub.seen, pub.rounds, pub.bestFree, pub.bestMap, pub.chDone, pub.sun], rm: roomTuples(me.rooms), at: now() });
   };
   G.importCard = function (code) {
     const d = decode('GDG1', code);
@@ -401,7 +422,7 @@
     rooms.forEach(r => { if (!G.localRooms[r.code] && !G.remoteRooms[r.code]) G.cardRooms[r.code] = r; });
     const st = Array.isArray(d.st) ? d.st : [];
     G.cards[id] = { id, nick: d.n.slice(0, 20), avatar: AV.normalize(d.av), total: d.s, passed: d.p, reward: !!d.rw,
-      items: st[0], seen: st[1], rounds: st[2], bestFree: st[3], bestMap: st[4], rooms: rooms.map(r => r.code), updated: at, viaCode: true };
+      items: st[0], seen: st[1], rounds: st[2], bestFree: st[3], bestMap: st[4], chDone: st[5], sun: st[6], rooms: rooms.map(r => r.code), updated: at, viaCode: true };
     storeCards(); G.mergeRooms();
     return { nick: G.cards[id].nick, total: Math.floor(Number(d.s) || 0), shared: rooms.filter(r => G.me && G.me.rooms.includes(r.code)).map(r => r.name) };
   };
@@ -587,6 +608,11 @@
     G.me.mapSeen.push(id);
     G.save();
   };
+  G.markSolar = function (id) {
+    if (!G.me || G.me.solarSeen.includes(id)) return;
+    G.me.solarSeen.push(id);
+    G.save();
+  };
 
   /* ---------- Тайлан: тоглолт бүрийн дүн ба алдаа (зөвхөн багш уншина) ---------- */
   const MAX_ROUNDS = 40;
@@ -612,17 +638,22 @@
     }).catch(() => {});
   };
 
-  G.applyRound = function ({ level, score, passed }) {
+  // key: me.levels доторх түлхүүр (C.levelKey, 'map', 'solar', 'order'). ch: бүлэг (шагнал шалгахад).
+  // gain: нийт оноонд нэмэх оноо (өгөөгүй бол score). Дарааллын сорил зөвхөн шилдэг дүнгээ ахиулахад оноо өгнө.
+  G.applyRound = function ({ key, ch, score, passed, gain }) {
     const me = G.me, before = me.total;
-    me.total = before + score;
+    const wasDone = ch ? G.chapterProgress(me, ch).done : false;
+    me.total = before + (typeof gain === 'number' ? gain : score);
     me.rounds = (me.rounds || 0) + 1;
-    const key = String(level), prev = me.levels[key] || { best: 0, passed: false, plays: 0 };
+    const prev = me.levels[key] || { best: 0, passed: false, plays: 0 };
     me.levels[key] = { best: Math.max(prev.best || 0, score), passed: !!(prev.passed || passed), plays: (prev.plays || 0) + 1 };
+    // Анх удаа аль нэг бүлгийн бүх түвшнийг давахад үнэгүй шагнал.
+    const chapterDone = !!ch && !wasDone && G.chapterProgress(me, ch).done;
     let rewardNew = false;
-    if (level === 5 && passed && !me.reward) { me.reward = true; rewardNew = true; }
+    if (chapterDone && !me.reward) { me.reward = true; rewardNew = true; }
     const newHats = AV.HATS.filter(h => h.need > 0 && before < h.need && me.total >= h.need);
     G.save();
-    return { before, after: me.total, newHats, rewardNew };
+    return { before, after: me.total, newHats, rewardNew, chapterDone };
   };
 
   /* ---------- Дэлгэц сонгох ---------- */
@@ -707,7 +738,7 @@
       document.body.dataset.host = 'cloud';
       G.LINK = location.origin;
       const s = await window.GADARGA_CLOUD.session();
-      if (!s) { G.cloudLoginMode = true; return G.openLogin(); }
+      if (!s) { G.cloudLoginMode = true; G.loginMsg = window.GADARGA_CLOUD.urlError || ''; return G.openLogin(); }
     } else document.body.dataset.host = window.claude ? 'claude' : 'local';
     const cl = window.claude;
     if (!cl || typeof cl.use !== 'function') return startLocal(window.GADARGA_STANDALONE
@@ -782,7 +813,7 @@
 
   // Туршилтын сервераас бусад газар консолоос тоглоомын төлөв рүү шууд хандах замыг хаана.
   if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
-    try { delete window.GAME; delete window.GADARGA; } catch (e) {}
+    try { delete window.GAME; delete window.GADARGA; delete window.GADARGA_CONTENT; } catch (e) {}
   }
 
   boot();
