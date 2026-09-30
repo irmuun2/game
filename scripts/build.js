@@ -81,6 +81,11 @@ fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 for (const f of fs.readdirSync(src)) fs.copyFileSync(path.join(src, f), path.join(out, f));
 
+// Хувилбар: package.json-ийн version (1.1.0 → «V.1.1») цэсэнд харагдана. Шинэчлэл бүрт дунд тоог нэмнэ.
+const ver = String(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version || '1.0.0').split('.').slice(0, 2).join('.');
+const idx = path.join(out, 'index.html');
+fs.writeFileSync(idx, fs.readFileSync(idx, 'utf8').split('__VERSION__').join(ver));
+
 // Supabase холболтын тохиргоо (publishable/anon түлхүүр нь нийтэд харагдах зориулалттай; хамгаалалтыг RLS дүрэм хийнэ).
 // Эрэмбэ: config.public.json (GitHub-д байгаа) → орчны хувьсагч (Vercel) → config.local.json (зөвхөн өөрийн компьютерт).
 const cfg = { supabaseUrl: '', supabaseAnonKey: '' };
@@ -93,4 +98,4 @@ Object.assign(cfg, readJson('config.local.json'));
 cfg.supabaseUrl = String(cfg.supabaseUrl || '').trim().replace(/\/(rest|auth)\/v1\/?$/, '').replace(/\/+$/, '');
 fs.writeFileSync(path.join(out, 'config.js'), 'window.GADARGA_CONFIG = ' + JSON.stringify(cfg) + ';\n');
 
-console.log(`public/ бэлэн: ${qinfo} · Supabase ${cfg.supabaseUrl ? 'холбогдсон' : 'тохируулаагүй (офлайн горим)'}`);
+console.log(`public/ бэлэн (V.${ver}): ${qinfo} · Supabase ${cfg.supabaseUrl ? 'холбогдсон' : 'тохируулаагүй (офлайн горим)'}`);
