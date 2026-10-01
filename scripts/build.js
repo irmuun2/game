@@ -81,6 +81,12 @@ fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 for (const f of fs.readdirSync(src)) fs.copyFileSync(path.join(src, f), path.join(out, f));
 
+// Хөтчийн табны тэмдэг (icon.svg): logo.svg-ийг бараан дөрвөлжин дэвсгэр дээр байрлуулна.
+const logo = fs.readFileSync(path.join(src, 'logo.svg'), 'utf8');
+const inner = logo.slice(logo.indexOf('>', logo.indexOf('<svg')) + 1, logo.lastIndexOf('</svg>'));
+fs.writeFileSync(path.join(out, 'icon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">' +
+  '<rect width="200" height="200" rx="44" fill="#07233a"/><g transform="translate(43 5) scale(.95)">' + inner + '</g></svg>\n');
+
 // Хувилбар: package.json-ийн version (1.1.0 → «V.1.1») цэсэнд харагдана. Шинэчлэл бүрт дунд тоог нэмнэ.
 const ver = String(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version || '1.0.0').split('.').slice(0, 2).join('.');
 const idx = path.join(out, 'index.html');

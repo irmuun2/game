@@ -1,7 +1,7 @@
 // Компьютер дээрээ туршихад: npm run build && npm run dev → http://localhost:3000
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..', 'public');
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml' };
 http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
   if (p === '/') p = '/index.html';
