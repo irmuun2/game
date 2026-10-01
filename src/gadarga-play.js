@@ -4,7 +4,11 @@
   const G = window.GAME = window.GAME || {};
   const C = window.GADARGA_CONTENT;
   const AV = window.GADARGA_AVATAR;
-  const DURATION = 15;
+  // Хугацаа: энгийн асуулт 15 сек (үлдсэн 15–10 сек: 3, 9–6: 2, 5–1: 1 оноо).
+  // Урт асуулт, урт хариулттай даалгавар 30 сек (30–20 сек: 3, 19–10: 2, 9–1: 1 оноо).
+  const TIMES = { 15: [10, 6], 30: [20, 10] };
+  const LONG = 220; // асуулт ба 4 хариултын нийт тэмдэгт
+  G.durationOf = q => (q.t === 30 || q.fig || (q.q.length + q.a.reduce((s, a) => s + a.length, 0)) >= LONG ? 30 : 15);
   const ZONE_NAME = { 3: 'Уул', 2: 'Өндөрлөг', 1: 'Тал', 0: 'Далайн түвшин' };
   const LETTERS = ['А', 'Б', 'В', 'Г'];
 
@@ -12,7 +16,7 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const reduced = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
   function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-  function pointsFor(rem) { const s = Math.ceil(rem); return s >= 10 ? 3 : s >= 6 ? 2 : s >= 1 ? 1 : 0; }
+  function pointsFor(rem, dur) { const s = Math.ceil(rem), z = TIMES[dur] || TIMES[15]; return s >= z[0] ? 3 : s >= z[1] ? 2 : s >= 1 ? 1 : 0; }
   G.$ = $; G.esc = esc; G.shuffle = shuffle;
 
   let round = null, raf = 0, lastSec = null, quitAt = 0, quitTimer = 0;
@@ -141,8 +145,12 @@
     $('#timer').classList.remove('stopped');
     paintTrack();
     lastSec = null;
+    // Урт даалгаварт 30 секунд. Цагийн бүсүүдийн тайлбарыг шинэчилнэ (цаг өөрөө нуугдмал).
+    round.dur = G.durationOf(q);
+    const z = TIMES[round.dur];
+    $('#zl-3').textContent = `${round.dur}–${z[0]} сек`; $('#zl-2').textContent = `${z[0] - 1}–${z[1]} сек`; $('#zl-1').textContent = `${z[1] - 1}–1 сек`;
     round.t0 = performance.now();
-    updateTimer(DURATION);
+    updateTimer(round.dur);
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(tick);
     $('#q-text').focus({ preventScroll: true });
@@ -150,21 +158,21 @@
 
   function tick(now) {
     if (!round || round.answered) return;
-    const rem = Math.max(0, DURATION - (now - round.t0) / 1000);
+    const rem = Math.max(0, round.dur - (now - round.t0) / 1000);
     updateTimer(rem);
     if (rem <= 0) { answer(null); return; }
     raf = requestAnimationFrame(tick);
   }
 
   function updateTimer(rem) {
-    const pct = Math.min(100, (1 - rem / DURATION) * 100);
+    const pct = Math.min(100, (1 - rem / round.dur) * 100);
     $('#elapsed').style.width = pct + '%';
     $('#marker').style.left = pct + '%';
     const sec = Math.ceil(rem);
     if (sec !== lastSec) {
       const first = lastSec === null;
       lastSec = sec;
-      const p = pointsFor(rem);
+      const p = pointsFor(rem, round.dur);
       $('#sec').textContent = sec;
       $('#timer').dataset.zone = p;
       $('#zone-name').textContent = p ? `${ZONE_NAME[p]} · ${p} оноо` : 'Хугацаа дууслаа';
@@ -174,7 +182,7 @@
 
   function answer(i) {
     if (!round || round.answered) return;
-    const rem = Math.max(0, DURATION - (performance.now() - round.t0) / 1000);
+    const rem = Math.max(0, round.dur - (performance.now() - round.t0) / 1000);
     round.answered = true;
     cancelAnimationFrame(raf);
     updateTimer(rem);
@@ -183,9 +191,9 @@
     const qi = round.order[round.idx], q = round.pool[qi];
     const chosen = i == null ? null : round.opts[i];
     const ok = !!(chosen && chosen.ok) && rem > 0;
-    const pts = ok ? pointsFor(rem) : 0;
+    const pts = ok ? pointsFor(rem, round.dur) : 0;
     round.score += pts;
-    round.log.push({ qi, pick: chosen ? chosen.t : null, ok, pts, used: Math.round((DURATION - rem) * 10) / 10 });
+    round.log.push({ qi, pick: chosen ? chosen.t : null, ok, pts, used: Math.round((round.dur - rem) * 10) / 10, dur: round.dur });
 
     [...$('#answers').children].forEach((b, j) => {
       b.disabled = true;

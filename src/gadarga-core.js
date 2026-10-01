@@ -599,6 +599,8 @@
   G.wearStyle = function (sid) {
     const ch = G.styleChoice(sid);
     if (ch.some(c => !c.have)) return false;
+    // Стилийг бүтнээр нь өмсөнө: стилд ороогүй үүрүүдийг тайлна (дараа нь дэлгүүрээс нэмж өмсөж болно).
+    AV.SLOTS.forEach(sl => { G.me.avatar[sl.id] = 'none'; });
     ch.forEach(c => { G.me.avatar[c.slot] = c.have.id; });
     G.save();
     return true;

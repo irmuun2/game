@@ -104,7 +104,7 @@
     const { next, from } = nextMilestone(me);
     const pct = next ? Math.round((me.total - from) / (next.need - from) * 100) : 100;
     const badges = AV.STYLES.filter(s => AV.wearingStyle(me.avatar, s.id))
-      .map(s => `<span class="sbadge ${s.id}">${s.name}</span>`).join('') +
+      .map(s => `<span class="sbadge" style="background:${s.color}">${s.name}</span>`).join('') +
       (me.reward ? '<span class="sbadge formal">Газарзүйч</span>' : '');
     $('#home-me').innerHTML =
       `<div class="av-ring">${AV.svg(me.avatar, 120)}</div><div>` +
@@ -136,7 +136,7 @@
   function itemMeta(item, me, un) {
     if (item.id === 'none') return 'Үндсэн';
     if (item.price) return un ? 'Худалдаж авсан' : `${item.price} оноо`;
-    if (item.reward) return un ? 'Үнэгүй шагнал' : '5 түвшин давбал үнэгүй';
+    if (item.reward) return un ? 'Үнэгүй шагнал' : 'Бүлгийн бүх түвшнийг давбал үнэгүй';
     return un ? `${item.need} оноонд нээгдсэн` : `Нийт ${item.need} оноо хүрэхэд`;
   }
 
@@ -147,7 +147,7 @@
     const items = AV.ITEMS.filter(i => i.slot === slotTab);
     $('#shop').innerHTML = (shopMsg ? `<p class="note" style="grid-column:1/-1;margin:0" aria-live="polite">${esc(shopMsg)}</p>` : '') + items.map(item => {
       const un = AV.unlocked(item, me), worn = me.avatar[item.slot] === item.id;
-      const style = item.style ? `<span class="it-style">${AV.STYLES.find(s => s.id === item.style).name}</span>` : '';
+      const style = item.style ? `<span class="it-style">${AV.styleNames(item).join(' · ')}</span>` : '';
       let btn;
       if (worn) btn = '<button type="button" class="btn-ghost sm" disabled>Өмссөн</button>';
       else if (un) btn = `<button type="button" class="btn-primary sm" data-act="wear" data-slot="${item.slot}" data-id="${item.id}">Өмсөх</button>`;
@@ -160,13 +160,16 @@
 
   function renderStyles() {
     const me = G.me, bal = G.balance(me);
-    $('#styles').innerHTML = AV.STYLES.map(s => {
+    // Загварын стил (хип хоп, албаны), дараа нь мэргэжлийн стилүүд (багш, эмч, цагдаа …).
+    const card = s => {
       const ch = G.styleChoice(s.id);
       const own = ch.filter(c => c.have);
       const missing = ch.filter(c => !c.have);
       const cost = missing.reduce((t, c) => t + c.buy.price, 0);
       const wearing = AV.wearingStyle(me.avatar, s.id);
+      // Зөвхөн тухайн стилийн хувцсаар харуулна (бусад чимэглэлгүй).
       const look = Object.assign({}, me.avatar);
+      AV.SLOTS.forEach(sl => { look[sl.id] = 'none'; });
       ch.forEach(c => { look[c.slot] = (c.have || c.buy).id; });
       const items = ch;
       let btn;
@@ -174,7 +177,9 @@
       else if (!missing.length) btn = `<button type="button" class="btn-primary sm" data-act="style" data-id="${s.id}">Стилийг өмсөх</button>`;
       else btn = `<button type="button" class="btn-primary sm" data-act="buyset" data-id="${s.id}" ${bal < cost ? 'disabled' : ''}>Үлдсэнийг авах · ${cost}</button>`;
       return `<div class="style-card${wearing ? ' done' : ''}">${AV.svg(look, 72)}<div><h3>${s.name}</h3><p>${s.text}. ${own.length}/${items.length} зүйл цуглуулсан.</p>${btn}</div></div>`;
-    }).join('');
+    };
+    $('#styles').innerHTML = AV.STYLES.filter(s => !s.job).map(card).join('') +
+      '<h3 class="styles-sub">Мэргэжлийн стил</h3>' + AV.STYLES.filter(s => s.job).map(card).join('');
   }
 
   async function copyText(text, input, msgEl) {

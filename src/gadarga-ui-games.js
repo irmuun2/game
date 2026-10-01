@@ -355,7 +355,8 @@
       { name: 'Сансрын аялагч', text: `Нарны аймгийн ${S.BODIES.length} биетийг бүгдийг судалсан`, ok: (s.sun || 0) >= S.BODIES.length },
       { name: 'Цуглуулагч', text: 'Дэлгүүрээс 5 ба түүнээс олон зүйл авсан', ok: s.items >= 5 },
       { name: 'Хип хоп стил', text: 'Хип хоп стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'hiphop') },
-      { name: 'Албаны стил', text: 'Албаны стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'formal') }
+      { name: 'Албаны стил', text: 'Албаны стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'formal') },
+      { name: 'Мэргэжилтэн', text: 'Багш, эмч, цагдаа гэх мэт мэргэжлийн стилийг бүрэн өмссөн', ok: AV.STYLES.some(st => st.job && AV.wearingStyle(p.avatar, st.id)) }
     ];
   }
 
