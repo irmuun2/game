@@ -213,6 +213,48 @@
     <p class="stairs-note" id="stairs-note"></p>
   </section>
 
+  <!-- НЭМЭЛТ ТОГЛООМ: ХОС КАРТ (7-р анги, бүх бүлэг) -->
+  <section id="cards" class="sheet" hidden aria-labelledby="cards-title">
+    <div class="bar-top">
+      <div>
+        <p class="eyebrow">7-р анги · Нэмэлт тоглоом · бүх бүлэг</p>
+        <h2 class="h2" id="cards-title">Хос карт</h2>
+      </div>
+      <button type="button" class="btn-ghost sm" data-nav="games">Тоглоомын цэс</button>
+    </div>
+    <div class="cg-intro">
+      <div class="cg-demo" id="cg-demo" aria-hidden="true"></div>
+      <ul class="cg-rules">
+        <li>Картыг хоёр хоёроор нь эргүүлж, <b>зураг ба нэрийг</b> тааруулна. Жишээ нь гранитын зураг ба «Гранит».</li>
+        <li>Таарвал хоёр карт алга болж оноо авна: хосыг <b>эхний 10 секундэд</b> олбол 3, <b>10–20 секундэд</b> 2, <b>20–30 секундэд</b> 1 оноо.</li>
+        <li>Таарахгүй бол <b>1 оноо хасагдана</b>. Нэг хосыг 30 секундэд олохгүй бол тоглолт дуусна.</li>
+        <li>Эхэнд бүх карт 3 секунд нээлттэй харагдана. Цээжлээрэй!</li>
+      </ul>
+    </div>
+    <div class="stairs" id="cg-stairs"></div>
+    <div class="stairs-base" aria-hidden="true"></div>
+    <p class="stairs-note">Эхний 5 түвшинд бүх хосыг олбол дараагийн түвшин нээгдэнэ. 6 дахь түвшин нь бүх бүлгийн холимог.</p>
+  </section>
+
+  <section id="cardplay" class="sheet" hidden aria-label="Хос карт">
+    <header class="hud">
+      <div class="hud-l">
+        <p class="qnum" id="cg-found">Олсон хос <b>0</b> / 0</p>
+        <p class="tag" id="cg-tag"></p>
+      </div>
+      <div class="hud-r">
+        <p class="score"><span class="lbl">Оноо</span><b id="cg-score">0</b><span class="pop" id="cg-pop" aria-hidden="true"></span></p>
+        <button type="button" class="btn-ghost sm" id="cg-quit">Гарах</button>
+      </div>
+    </header>
+    <div class="cg-timer" id="cg-timer" data-zone="3">
+      <div class="cg-bar"><i id="cg-fill"></i></div>
+      <p class="cg-zone" id="cg-zone"></p>
+    </div>
+    <p class="cg-msg" id="cg-msg" aria-live="polite"></p>
+    <div class="cg-board" id="cg-board"></div>
+  </section>
+
   <!-- НЭМЭЛТ ТОГЛООМ: НАРНЫ АЙМГИЙН АЯЛАЛ (II бүлэг) -->
   <section id="solar" class="sheet wide" hidden aria-labelledby="solar-title">
     <div class="bar-top">
@@ -651,6 +693,8 @@
 <script src="gadarga-play.js"></script>
 <script src="gadarga-ui.js"></script>
 <script src="gadarga-ui-games.js"></script>
+<script src="gadarga-cards.js"></script>
+<script src="gadarga-cardgame.js"></script>
 <script src="gadarga-core.js"></script>
 </body>
 </html>

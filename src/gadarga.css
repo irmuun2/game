@@ -546,3 +546,41 @@ body:not([data-host="cloud"]) [data-cloud-only]{display:none!important}
 @media (max-width:520px){ .order-slots{grid-template-columns:repeat(2,minmax(0,1fr))} .order-slots li{min-height:40px} }
 @media (prefers-reduced-motion:reduce){ .order-chip.bad{animation:none} }
 
+
+/* Хос карт */
+.cg-intro{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;margin:18px 0 22px}
+.cg-demo{display:flex;gap:8px}
+.cg-demo .mcard{width:76px}
+.cg-rules{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:.9rem;color:var(--muted)}
+.cg-rules b{color:var(--text)}
+.cg-timer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;margin:14px 0 6px}
+.cg-bar{height:12px;border-radius:999px;background:var(--line);overflow:hidden}
+.cg-bar i{display:block;height:100%;width:100%;border-radius:999px;background:#97d17f;transition:background .3s}
+.cg-timer[data-zone="2"] .cg-bar i{background:#f0cd80}
+.cg-timer[data-zone="1"] .cg-bar i{background:#eba36c}
+.cg-timer[data-zone="0"] .cg-bar i{background:var(--bad)}
+.cg-zone{margin:0;font:600 .82rem var(--display);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cg-msg{margin:0 0 4px;min-height:1.4em;text-align:center;font-weight:600;color:var(--shallow)}
+.cg-board{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:10px;max-width:var(--maxw,560px);margin:8px auto 0}
+.mcard{appearance:none;border:0;padding:0;background:none;aspect-ratio:4/5;perspective:900px;cursor:pointer;display:block;position:relative;border-radius:12px}
+.mcard:focus-visible{outline:3px solid var(--shallow);outline-offset:3px}
+.mcard-in{position:absolute;inset:0;transition:transform .42s;transform-style:preserve-3d}
+.mcard.up .mcard-in{transform:rotateY(180deg)}
+.mcard-face{position:absolute;inset:0;border-radius:12px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:grid;place-items:center;overflow:hidden}
+.mcard-back{background:radial-gradient(circle at 50% 40%,#fbe08a,#e8b923 70%);border:3px solid #fff3c4;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.mcard-back img{width:38%;height:auto;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.mcard-front{transform:rotateY(180deg);background:#fbf8ef;border:3px solid #e8b923;color:#0d1f2b;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.mcard-front.img svg{width:100%;height:100%;display:block}
+.mcard-front.name{background:#fff7dc;container-type:inline-size}
+.cg-name{padding:6px;font:800 .78rem/1.15 var(--display);font-size:clamp(9px,12.5cqi,16px);text-align:center;overflow-wrap:break-word}
+.mcard.ok .mcard-front{border-color:#5d9d4c;box-shadow:0 0 0 4px rgba(151,209,127,.7)}
+.mcard.bad .mcard-front{border-color:var(--bad);box-shadow:0 0 0 4px rgba(196,73,47,.55)}
+.mcard.bad .mcard-in{animation:cg-shake .4s}
+.mcard.gone{pointer-events:none}
+.mcard.gone .mcard-in{opacity:0;transform:rotateY(180deg) scale(.82);transition:opacity .35s,transform .35s}
+@keyframes cg-shake{25%{transform:rotateY(180deg) translateX(-5px)}75%{transform:rotateY(180deg) translateX(5px)}}
+.mcard.demo{cursor:default}
+.mcard.demo .mcard-front{transform:none}
+.ch-card.game-x{background:linear-gradient(135deg,rgba(232,185,35,.16),var(--raise))}
+@media (max-width:700px){ .cg-intro{grid-template-columns:1fr} .cg-board{gap:7px} }
+@media (prefers-reduced-motion:reduce){ .mcard-in{transition:none} .mcard.bad .mcard-in{animation:none} }

@@ -34,6 +34,7 @@
         (c.game === 'map' ? '<button type="button" class="btn-ghost sm" data-open-map>Газрын зураг</button>' : '') +
         (c.game === 'solar' ? '<button type="button" class="btn-ghost sm" data-open-solar>Нарны аймаг</button>' : '') + '</div></article>';
     }).join('')
+      + (G.gradeSel === 7 ? cardsCard(me) : '')
       : `<div class="card soon-card"><h2 class="h-sm">${G.gradeSel}-р ангийн бүлгүүд удахгүй нэмэгдэнэ</h2>` +
         '<p class="note" style="margin:0">Сурах бичгийн бүлэг бүрээр түвшин, асуултууд бэлтгэгдэж байна. Одоохондоо бусад ангийн бүлгүүдээр тоглоорой.</p></div>';
     const tk = G.roomTokens(me);
@@ -41,6 +42,14 @@
     G.renderRival($('#games-rival'));
     G.renderLeaders($('#games-leaders'), { limit: 10 });
   };
+  // 7-р ангийн бүх сэдвийн хос картын тоглоом.
+  function cardsCard(me) {
+    const done = G.cardsPassed(me), best = G.cardsBest(me);
+    return '<article class="ch-card game-x" style="--zc:#e8b923"><p class="ch-n">Нэмэлт тоглоом · бүх бүлэг</p><h2 class="ch-t">Хос карт</h2>' +
+      `<p class="ch-p">${done ? `${done}/5 түвшин давсан` : 'Зураг ба нэрийг тааруулах · 6 түвшин'}${best ? ` · шилдэг ${best} оноо` : ''}</p>` +
+      `<div class="ch-bar" aria-hidden="true"><i style="width:${done * 20}%"></i></div>` +
+      `<div class="row"><button type="button" class="btn-primary sm" data-open-cards>${done || best ? 'Үргэлжлүүлэх' : 'Тоглох'}</button></div></article>`;
+  }
   function pickGrade(g) {
     if (!C.grade(g)) return;
     G.gradeSel = g;
@@ -352,6 +361,7 @@
       { name: '200 оноо', text: 'Нийт 200 оноо цуглуулсан', ok: p.total >= 200 },
       { name: '500 оноо', text: 'Нийт 500 оноо цуглуулсан', ok: p.total >= 500 },
       { name: 'Газрын зургийн судлаач', text: `Газрын зургийн ${sites} газрыг бүгдийг судалсан`, ok: s.seen >= sites },
+      { name: 'Хос картын мастер', text: 'Хос картын эхний 5 түвшнийг бүгдийг давсан', ok: (s.cards || 0) >= 5 },
       { name: 'Сансрын аялагч', text: `Нарны аймгийн ${S.BODIES.length} биетийг бүгдийг судалсан`, ok: (s.sun || 0) >= S.BODIES.length },
       { name: 'Цуглуулагч', text: 'Дэлгүүрээс 5 ба түүнээс олон зүйл авсан', ok: s.items >= 5 },
       { name: 'Хип хоп стил', text: 'Хип хоп стилийг бүрэн өмссөн', ok: AV.wearingStyle(p.avatar, 'hiphop') },
@@ -473,6 +483,7 @@
   };
   const gameName = g => {
     const m = String(g || '').match(/^(?:(\d+-\d+)\/)?L(\d+)$/);
+    if (/^C\d+$/.test(String(g))) return '7-р анги · Хос карт · Түвшин ' + String(g).slice(1);
     if (g === 'S') return 'II бүлэг · Нарны аймгийн аялал';
     if (g === 'O') return 'II бүлэг · Дарааллын сорил';
     if (!m) return 'III бүлэг · Газрын зургийн тоглоом';
@@ -764,6 +775,7 @@
     $('#chapters').addEventListener('click', e => {
       if (e.target.closest('[data-open-map]')) return G.nav('map');
       if (e.target.closest('[data-open-solar]')) return G.nav('solar');
+      if (e.target.closest('[data-open-cards]')) return G.nav('cards');
       const b = e.target.closest('[data-ch]');
       if (!b) return;
       G.curCh = b.dataset.ch;

@@ -334,6 +334,7 @@
     else if (k === 'end') { tone(523, .16, 'sine', .07); tone(659, .16, 'sine', .07, .14); tone(784, .3, 'sine', .07, .28); }
   }
   G.sfx = sfx;
+  G.unlockAudio = unlockAudio;
   const ICON_ON = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
   const ICON_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
   function syncSound() {

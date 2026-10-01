@@ -12,8 +12,8 @@
     db: null, user: null, me: null, players: {}, approvals: {}, classHash: '', classCode: '', localNote: ''
   });
 
-  const SCREENS = ['loading', 'blocked', 'login', 'create', 'wait', 'home', 'games', 'levels', 'map', 'solar', 'rooms', 'room', 'board', 'profiles', 'teacher', 'play', 'result'];
-  const NAV_SCREENS = { home: 'home', games: 'games', levels: 'games', map: 'games', solar: 'games', rooms: 'games', room: 'games', board: 'board', profiles: 'profiles', teacher: 'teacher' };
+  const SCREENS = ['loading', 'blocked', 'login', 'create', 'wait', 'home', 'games', 'levels', 'map', 'solar', 'cards', 'cardplay', 'rooms', 'room', 'board', 'profiles', 'teacher', 'play', 'result'];
+  const NAV_SCREENS = { home: 'home', games: 'games', levels: 'games', map: 'games', solar: 'games', cards: 'games', rooms: 'games', room: 'games', board: 'board', profiles: 'profiles', teacher: 'teacher' };
   G.show = function (name) {
     G.screen = name;
     document.body.dataset.screen = name;
@@ -26,7 +26,7 @@
     if (tab) G.renderNav();
     window.scrollTo(0, 0);
   };
-  const RENDER = { home: 'renderHome', games: 'renderGames', levels: 'renderLevels', map: 'renderMap', solar: 'renderSolar', rooms: 'renderRooms', room: 'renderRoom', board: 'renderBoard', profiles: 'renderProfiles', teacher: 'renderTeacher' };
+  const RENDER = { home: 'renderHome', games: 'renderGames', levels: 'renderLevels', map: 'renderMap', solar: 'renderSolar', cards: 'renderCards', rooms: 'renderRooms', room: 'renderRoom', board: 'renderBoard', profiles: 'renderProfiles', teacher: 'renderTeacher' };
   G.nav = function (name) {
     if (G.inRound()) return;
     const r = RENDER[name];
@@ -116,7 +116,7 @@
   G.board = {};
   // Бусдад харагдах амжилтын үзүүлэлтүүд.
   G.pubStats = p => p.pub || {
-    items: (p.owned || []).length, seen: (p.mapSeen || []).length, sun: (p.solarSeen || []).length, rounds: p.rounds || 0,
+    items: (p.owned || []).length, seen: (p.mapSeen || []).length, sun: (p.solarSeen || []).length, cards: G.cardsPassed(p), rounds: p.rounds || 0,
     bestFree: (p.levels && p.levels['6'] && p.levels['6'].best) || 0,
     bestMap: (p.levels && p.levels.map && p.levels.map.best) || 0,
     chDone: G.chaptersDone(p)
@@ -131,7 +131,7 @@
     p.passedN = num(d && d.passed, 999);
     // Өмнөх хувилбарт зөвхөн III бүлэг (5 түвшин) байсан тул 5 түвшин давсан бол 1 бүлэг дуусгасан гэж тооцно.
     const chDone = d && d.chDone != null ? num(d.chDone, 99) : (p.passedN >= 5 ? 1 : 0);
-    p.pub = { items: num(d.items, 99), seen: num(d.seen, 99), sun: num(d.sun, 99), rounds: num(d.rounds, 1e6), bestFree: num(d.bestFree, 999), bestMap: num(d.bestMap, 999), chDone };
+    p.pub = { items: num(d.items, 99), seen: num(d.seen, 99), sun: num(d.sun, 99), cards: num(d.cards, 9), rounds: num(d.rounds, 1e6), bestFree: num(d.bestFree, 999), bestMap: num(d.bestMap, 999), chDone };
     return p;
   };
 
@@ -409,7 +409,7 @@
   G.myCard = function () {
     const me = G.me, pub = G.boardDoc(me);
     return encode('GDG1', { v: 1, id: local.cur, n: me.nick, av: pub.avatar, s: me.total, p: pub.passed, rw: pub.reward ? 1 : 0,
-      st: [pub.items, pub.seen, pub.rounds, pub.bestFree, pub.bestMap, pub.chDone, pub.sun], rm: roomTuples(me.rooms), at: now() });
+      st: [pub.items, pub.seen, pub.rounds, pub.bestFree, pub.bestMap, pub.chDone, pub.sun, pub.cards], rm: roomTuples(me.rooms), at: now() });
   };
   G.importCard = function (code) {
     const d = decode('GDG1', code);
@@ -422,7 +422,7 @@
     rooms.forEach(r => { if (!G.localRooms[r.code] && !G.remoteRooms[r.code]) G.cardRooms[r.code] = r; });
     const st = Array.isArray(d.st) ? d.st : [];
     G.cards[id] = { id, nick: d.n.slice(0, 20), avatar: AV.normalize(d.av), total: d.s, passed: d.p, reward: !!d.rw,
-      items: st[0], seen: st[1], rounds: st[2], bestFree: st[3], bestMap: st[4], chDone: st[5], sun: st[6], rooms: rooms.map(r => r.code), updated: at, viaCode: true };
+      items: st[0], seen: st[1], rounds: st[2], bestFree: st[3], bestMap: st[4], chDone: st[5], sun: st[6], cards: st[7], rooms: rooms.map(r => r.code), updated: at, viaCode: true };
     storeCards(); G.mergeRooms();
     return { nick: G.cards[id].nick, total: Math.floor(Number(d.s) || 0), shared: rooms.filter(r => G.me && G.me.rooms.includes(r.code)).map(r => r.name) };
   };
@@ -733,6 +733,7 @@
     G.initPlay();
     G.initUI();
     G.initGames();
+    G.initCards();
     window.GADARGA_TERRAIN.mount($('#terrain'));
     G.show('loading');
     // Вэб сайт (Vercel + Supabase): эхлээд имэйлээр нэвтэрсэн эсэхийг шалгана.
